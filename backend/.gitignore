@@ -30,3 +30,7 @@ build/
 
 ### VS Code ###
 .vscode/
+
+### Firebase ###
+firebase-service-account.json
+**/firebase-service-account*.json
