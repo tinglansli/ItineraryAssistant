@@ -1,0 +1,36 @@
+# backend 项目相关
+/backend/target/
+/backend/*.log
+/backend/.idea/
+/backend/*.iml
+/backend/.classpath
+/backend/.project
+/backend/.settings
+/backend/.vscode
+
+# frontend 项目相关
+/frontend/node_modules/
+/frontend/dist/
+/frontend/.env.local
+/frontend/.cache
+/frontend/*.log
+/frontend/.vscode
+/frontend/.idea
+
+# Maven
+.mvn/timing.properties
+
+# IDEA
+*.iml
+.idea/
+
+# VSCode
+.vscode/
+
+# 通用临时文件
+*.log
+*.tmp
+*.bak
+*.swp
+.DS_Store
+Thumbs.db
