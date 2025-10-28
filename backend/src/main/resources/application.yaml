@@ -1,4 +1,30 @@
+server:
+  port: ${SERVER_PORT:8080}
+
 spring:
   application:
-    name: backend
+    name: itinerary-assistant-backend
+  
+  # Redis 配置
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: 3000ms
 
+# Firebase 配置
+firebase:
+  project-id: ${FIREBASE_PROJECT_ID:itinerary-assistant-d71a9}
+  emulator:
+    host: ${FIRESTORE_EMULATOR_HOST:localhost:8080}
+
+# 缓存配置 (统一TTL：30分钟)
+cache:
+  default-ttl: ${CACHE_TTL:1800}
+
+# 日志配置
+logging:
+  level:
+    root: INFO
+    com.tinglans.backend: DEBUG
