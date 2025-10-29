@@ -1,5 +1,6 @@
 package com.tinglans.backend.service;
 
+import com.tinglans.backend.common.BusinessException;
 import com.tinglans.backend.domain.User;
 import com.tinglans.backend.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -231,7 +232,7 @@ class UserServiceTest {
         when(userRepository.findById(testUserId)).thenReturn(Optional.empty());
 
         // When & Then
-        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> {
+        BusinessException exception = assertThrows(BusinessException.class, () -> {
             userService.getPreferences(testUserId);
         });
 

@@ -1,10 +1,13 @@
 package com.tinglans.backend.service;
 
+import com.tinglans.backend.common.BusinessException;
+import com.tinglans.backend.common.ResponseCode;
 import com.tinglans.backend.domain.User;
 import com.tinglans.backend.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -24,6 +27,30 @@ public class UserService {
 
     private final UserRepository userRepository;
     private static final String PREFERENCE_DELIMITER = ";";
+
+    // ==================== 校验方法 ====================
+
+    /**
+     * 校验用户ID
+     */
+    public void validateUserId(String userId) {
+        if (!StringUtils.hasText(userId)) {
+            throw new BusinessException(ResponseCode.INVALID_PARAM, "用户ID不能为空");
+        }
+    }
+
+    /**
+     * 校验并获取用户
+     */
+    public User validateAndGetUser(String userId) throws ExecutionException, InterruptedException {
+        Optional<User> userOpt = getUserById(userId);
+        if (userOpt.isEmpty()) {
+            throw new BusinessException(ResponseCode.USER_NOT_FOUND);
+        }
+        return userOpt.get();
+    }
+
+    // ==================== 业务方法 ====================
 
     /**
      * 根据ID获取用户
@@ -62,14 +89,11 @@ public class UserService {
      * @return 偏好字符串（用 ";" 分隔）
      */
     public String getPreferences(String userId) throws ExecutionException, InterruptedException {
+        validateUserId(userId);
+        
         log.debug("查看用户偏好: userId={}", userId);
 
-        Optional<User> userOpt = userRepository.findById(userId);
-        if (userOpt.isEmpty()) {
-            throw new IllegalArgumentException("用户不存在: " + userId);
-        }
-
-        User user = userOpt.get();
+        User user = validateAndGetUser(userId);
         List<String> preferences = user.getPreferences();
 
         if (preferences == null || preferences.isEmpty()) {
