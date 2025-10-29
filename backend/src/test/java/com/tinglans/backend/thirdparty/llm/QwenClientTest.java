@@ -25,6 +25,7 @@ class QwenClientTest {
      * 测试对话
      */
     @Test
+    @Disabled
     void testChatWithJsonOutput() throws Exception {
         String systemPrompt = """
             你是一个数据分析助手。

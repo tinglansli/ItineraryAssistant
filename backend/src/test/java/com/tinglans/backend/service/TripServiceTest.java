@@ -1,5 +1,6 @@
 package com.tinglans.backend.service;
 
+import com.tinglans.backend.common.BusinessException;
 import com.tinglans.backend.domain.Activity;
 import com.tinglans.backend.domain.Day;
 import com.tinglans.backend.domain.Trip;
@@ -199,9 +200,10 @@ class TripServiceTest {
         when(qwenClient.chat(anyString(), anyString())).thenReturn("{ invalid json");
 
         // When & Then
-        assertThrows(RuntimeException.class, () -> {
+        BusinessException exception = assertThrows(BusinessException.class, () -> {
             tripService.createTripFromText(userInput, testUserId);
         });
+        assertEquals("Invalid JSON format for trip data", exception.getMessage());
 
         verify(tripRepository, never()).saveToCache(any(Trip.class));
     }
@@ -365,11 +367,11 @@ class TripServiceTest {
         when(tripRepository.getFromCache(testTripId)).thenReturn(Optional.empty());
 
         // When & Then
-        IllegalStateException exception = assertThrows(IllegalStateException.class, () -> {
+        BusinessException exception = assertThrows(BusinessException.class, () -> {
             tripService.confirmTrip(testTripId, testUserId);
         });
 
-        assertTrue(exception.getMessage().contains("行程不存在或已过期"));
+        assertTrue(exception.getMessage().contains("行程") && exception.getMessage().contains("过期"));
 
         verify(tripRepository, times(1)).getFromCache(testTripId);
         verify(tripRepository, never()).saveToFirestore(any(Trip.class));
@@ -382,11 +384,11 @@ class TripServiceTest {
         when(tripRepository.getFromCache(testTripId)).thenReturn(Optional.of(testTrip));
 
         // When & Then
-        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> {
+        BusinessException exception = assertThrows(BusinessException.class, () -> {
             tripService.confirmTrip(testTripId, differentUserId);
         });
 
-        assertTrue(exception.getMessage().contains("无权确认该行程"));
+        assertTrue(exception.getMessage().contains("无权"));
 
         verify(tripRepository, times(1)).getFromCache(testTripId);
         verify(tripRepository, never()).saveToFirestore(any(Trip.class));

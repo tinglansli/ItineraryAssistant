@@ -2,6 +2,9 @@ package com.tinglans.backend.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.core.JsonParseException;
+import com.tinglans.backend.common.BusinessException;
+import com.tinglans.backend.common.ResponseCode;
 import com.tinglans.backend.domain.Activity;
 import com.tinglans.backend.domain.Day;
 import com.tinglans.backend.domain.Trip;
@@ -10,6 +13,7 @@ import com.tinglans.backend.thirdparty.llm.QwenClient;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 import java.time.Instant;
 import java.time.LocalDate;
@@ -33,6 +37,48 @@ public class TripService {
     private final QwenClient qwenClient;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
+    // ==================== 校验方法 ====================
+
+    /**
+     * 校验用户输入
+     */
+    public void validateUserInput(String userInput) {
+        if (!StringUtils.hasText(userInput)) {
+            throw new BusinessException(ResponseCode.INVALID_PARAM, "用户输入不能为空");
+        }
+    }
+
+    /**
+     * 校验用户ID
+     */
+    public void validateUserId(String userId) {
+        if (!StringUtils.hasText(userId)) {
+            throw new BusinessException(ResponseCode.INVALID_PARAM, "用户ID不能为空");
+        }
+    }
+
+    /**
+     * 校验并获取行程
+     */
+    public Trip validateAndGetTrip(String tripId) throws ExecutionException, InterruptedException {
+        Optional<Trip> tripOpt = getTripById(tripId);
+        if (tripOpt.isEmpty()) {
+            throw new BusinessException(ResponseCode.TRIP_NOT_FOUND);
+        }
+        return tripOpt.get();
+    }
+
+    /**
+     * 校验行程权限
+     */
+    public void validateTripPermission(Trip trip, String userId) {
+        if (!trip.getUserId().equals(userId)) {
+            throw new BusinessException(ResponseCode.PERMISSION_DENIED, "无权操作该行程");
+        }
+    }
+
+    // ==================== 业务方法 ====================
+
     /**
      * 从文本创建行程预览
      *
@@ -41,6 +87,9 @@ public class TripService {
      * @return 生成的行程对象
      */
     public Trip createTripFromText(String userInput, String userId) throws ExecutionException, InterruptedException {
+        validateUserInput(userInput);
+        validateUserId(userId);
+        
         log.info("开始从文本创建行程: userId={}", userId);
 
         // 1. 构建 LLM Prompt
@@ -96,20 +145,20 @@ public class TripService {
      * @return 确认后的行程对象
      */
     public Trip confirmTrip(String tripId, String userId) throws ExecutionException, InterruptedException {
+        validateUserId(userId);
+        
         log.info("开始确认行程: tripId={}, userId={}", tripId, userId);
 
         // 1. 从 Redis 获取行程
         Optional<Trip> tripOpt = tripRepository.getFromCache(tripId);
         if (tripOpt.isEmpty()) {
-            throw new IllegalStateException("行程不存在或已过期: " + tripId);
+            throw new BusinessException(ResponseCode.TRIP_EXPIRED);
         }
 
         Trip trip = tripOpt.get();
 
-        // 2. 权限校验（业务逻辑）
-        if (!trip.getUserId().equals(userId)) {
-            throw new IllegalArgumentException("无权确认该行程");
-        }
+        // 2. 权限校验
+        validateTripPermission(trip, userId);
 
         // 3. 持久化到 Firestore
         tripRepository.saveToFirestore(trip);
@@ -209,13 +258,13 @@ public class TripService {
     private Trip parseLlmResponseToTrip(String llmJsonResponse) {
         try {
             log.debug("开始解析行程 JSON，长度: {}", llmJsonResponse.length());
-            
+
             JsonNode root = objectMapper.readTree(llmJsonResponse);
-            
+
             // 解析基本信息
             String tripName = root.has("tripName") ? root.get("tripName").asText() : "未命名行程";
             String destination = root.has("destination") ? root.get("destination").asText() : "";
-            
+
             // 解析日期
             LocalDate startDate = null;
             LocalDate endDate = null;
@@ -225,7 +274,7 @@ public class TripService {
             if (root.has("endDate")) {
                 endDate = LocalDate.parse(root.get("endDate").asText());
             }
-            
+
             // 解析天数列表
             List<Day> days = new ArrayList<>();
             if (root.has("days") && root.get("days").isArray()) {
@@ -251,9 +300,12 @@ public class TripService {
                     tripName, days.size(), startDate, endDate);
             return trip;
             
+        } catch (JsonParseException e) {
+            log.error("行程 JSON 解析失败: {}", llmJsonResponse);
+            throw new BusinessException(ResponseCode.BAD_REQUEST, "Invalid JSON format for trip data");
         } catch (Exception e) {
-            log.error("行程 JSON 解析失败: {}", llmJsonResponse, e);
-            throw new RuntimeException("行程 JSON 解析失败: " + e.getMessage(), e);
+            log.error("行程 JSON 解析过程中发生未知错误: {}", llmJsonResponse, e);
+            throw new BusinessException(ResponseCode.INTERNAL_ERROR, e);
         }
     }
     
