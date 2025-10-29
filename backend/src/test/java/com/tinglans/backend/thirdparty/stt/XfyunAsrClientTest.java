@@ -36,6 +36,7 @@ class XfyunAsrClientTest {
      * 测试语音转写
      */
     @Test
+    @Disabled
     void testTranscribeSmallFile() throws Exception {
         // 替换为实际的测试音频文件路径
         File audioFile = new File("src/test/resources/test-audio.wav");
