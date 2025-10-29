@@ -33,33 +33,12 @@ class XfyunAsrClientTest {
     }
 
     /**
-     * 测试小文件转写
+     * 测试语音转写
      */
     @Test
     void testTranscribeSmallFile() throws Exception {
         // 替换为实际的测试音频文件路径
         File audioFile = new File("src/test/resources/test-audio.wav");
-        
-        assertTrue(audioFile.exists(), "测试音频文件不存在");
-        
-        // 执行转写
-        String result = xfyunAsrClient.transcribe(audioFile);
-        
-        // 验证结果
-        assertNotNull(result, "转写结果不应为空");
-        assertFalse(result.isEmpty(), "转写结果不应为空字符串");
-        
-        log.info("转写结果: {}", result);
-    }
-
-    /**
-     * 测试大文件转写（大于30MB，使用分块上传）
-     */
-    @Test
-    @Disabled("仅在需要时运行此测试")
-    void testTranscribeLargeFile() throws Exception {
-        // 替换为实际的大文件路径
-        File audioFile = new File("src/test/resources/test-audio-large.wav");
         
         assertTrue(audioFile.exists(), "测试音频文件不存在");
         
