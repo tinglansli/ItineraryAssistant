@@ -192,11 +192,8 @@ public class QwenClient {
                   "activities": [
                     {
                       "type": "活动类型(sight/food/hotel/transport)",
-                      "title": "活动名称（如：参观伏见稻荷大社）",
-                      "locationName": "地点名称（用于地图搜索，如：伏见稻荷大社）",
-                      "address": "详细地址",
-                      "lat": 纬度,
-                      "lng": 经度,
+                      "title": "活动描述（如：参观伏见稻荷大社）",
+                      "locationName": "地点关键词（如：伏见稻荷大社）",
                       "startTime": "开始时间(HH:mm)",
                       "endTime": "结束时间(HH:mm)",
                       "estimatedCost": 预估费用（单位：分，100分=1元）
@@ -206,11 +203,11 @@ public class QwenClient {
               ]
             }
             
-            注意事项：
-            1. locationName 用于高德地图搜索，必须是准确的地点名称
-            2. title 是对活动的描述，可以更详细
-            3. 经纬度必须真实准确
-            4. 费用单位是"分"（1元 = 100分）
+            重要说明：
+            1. locationName 是用于地图搜索的关键词，必须准确（如景点名、餐厅名、酒店名）
+            2. title 是对活动的描述，可以更详细生动
+            3. 费用单位是"分"（1元 = 100分）
+            4. 每天安排3-5个活动，时间分配合理
             """;
 
         String userMessage = String.format(
