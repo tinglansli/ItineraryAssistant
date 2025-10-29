@@ -33,6 +33,16 @@ aliyun:
     top-p: ${LLM_TOP_P:0.8}
     enable-search: ${LLM_ENABLE_SEARCH:false}
 
+# 科大讯飞语音识别配置
+xfyun:
+  asr:
+    app-id: ${XFYUN_APP_ID:a879cd6e}
+    api-key: ${XFYUN_API_KEY:9dcd372401d4df4112a05c12d1853c38}
+    api-secret: ${XFYUN_API_SECRET:NWRlNGZhZjY2Y2ZjZjU1NjcyNDdlYjQ0}
+    timeout: ${XFYUN_TIMEOUT:30000}
+    poll-interval: ${XFYUN_POLL_INTERVAL:5000}
+    max-poll-count: ${XFYUN_MAX_POLL_COUNT:60}
+
 # 日志配置
 logging:
   level:
