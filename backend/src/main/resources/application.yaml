@@ -23,6 +23,16 @@ firebase:
 cache:
   default-ttl: ${CACHE_TTL:1800}
 
+# 阿里云百炼 LLM 配置
+aliyun:
+  llm:
+    api-key: ${DASHSCOPE_API_KEY:sk-43afcff9101f4a2da68afa67294e38d9}
+    model: ${LLM_MODEL:qwen-max}
+    max-tokens: ${LLM_MAX_TOKENS:2000}
+    temperature: ${LLM_TEMPERATURE:0.7}
+    top-p: ${LLM_TOP_P:0.8}
+    enable-search: ${LLM_ENABLE_SEARCH:false}
+
 # 日志配置
 logging:
   level:
