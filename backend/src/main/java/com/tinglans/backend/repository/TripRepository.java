@@ -169,9 +169,11 @@ public class TripRepository {
         map.put("dayIndex", activity.getDayIndex());
         map.put("type", activity.getType());
         map.put("title", activity.getTitle());
+        map.put("locationName", activity.getLocationName());
         map.put("address", activity.getAddress());
         map.put("lat", activity.getLat());
         map.put("lng", activity.getLng());
+        map.put("poiId", activity.getPoiId());
         map.put("startTime", activity.getStartTime());
         map.put("endTime", activity.getEndTime());
         map.put("estimatedCost", activity.getEstimatedCost());
@@ -244,9 +246,11 @@ public class TripRepository {
                 .dayIndex(((Long) map.get("dayIndex")).intValue())
                 .type((String) map.get("type"))
                 .title((String) map.get("title"))
+                .locationName((String) map.get("locationName"))
                 .address((String) map.get("address"))
                 .lat((Double) map.get("lat"))
                 .lng((Double) map.get("lng"))
+                .poiId((String) map.get("poiId"))
                 .startTime((String) map.get("startTime"))
                 .endTime((String) map.get("endTime"))
                 .estimatedCost((Long) map.get("estimatedCost"))

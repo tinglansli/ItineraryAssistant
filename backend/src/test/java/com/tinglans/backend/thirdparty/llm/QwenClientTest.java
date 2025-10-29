@@ -176,13 +176,21 @@ class QwenClientTest {
         assertTrue(activities.isArray());
         assertTrue(activities.size() > 0);
         
-        // 验证第一个活动的字段
+        // 验证第一个活动的字段（根据新的Activity结构）
         JsonNode firstActivity = activities.get(0);
-        assertTrue(firstActivity.has("name") || firstActivity.has("activity"));
+        assertTrue(firstActivity.has("type"), "活动应该有 type 字段");
+        assertTrue(firstActivity.has("title"), "活动应该有 title 字段");
+        assertTrue(firstActivity.has("locationName"), "活动应该有 locationName 字段");
+        assertTrue(firstActivity.has("address") || firstActivity.has("location"), "活动应该有 address 字段");
+        assertTrue(firstActivity.has("lat"), "活动应该有 lat 字段");
+        assertTrue(firstActivity.has("lng"), "活动应该有 lng 字段");
+        assertTrue(firstActivity.has("estimatedCost"), "活动应该有 estimatedCost 字段");
         
         System.out.println("✅ 行程规划 JSON 结构验证通过");
         System.out.println("天数: " + daysArray.size());
         System.out.println("第一天活动数: " + activities.size());
+        System.out.println("第一个活动类型: " + firstActivity.get("type").asText());
+        System.out.println("第一个活动地点: " + firstActivity.get("locationName").asText());
     }
 
     /**

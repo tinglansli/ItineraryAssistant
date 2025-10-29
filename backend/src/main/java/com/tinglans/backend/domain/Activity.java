@@ -36,7 +36,12 @@ public class Activity {
     private String title;
     
     /**
-     * 地址
+     * 地点名称
+     */
+    private String locationName;
+    
+    /**
+     * 详细地址
      */
     private String address;
     
@@ -49,6 +54,11 @@ public class Activity {
      * 经度
      */
     private Double lng;
+    
+    /**
+     * 高德地图POI ID
+     */
+    private String poiId;
     
     /**
      * 开始时间（HH:mm 格式）
