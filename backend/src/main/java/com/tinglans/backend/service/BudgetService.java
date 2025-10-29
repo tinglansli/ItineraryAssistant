@@ -59,22 +59,21 @@ public class BudgetService {
     /**
      * 计算预算汇总
      *
-     * @param tripId 行程ID
      * @param trip 行程对象
      * @return 预算汇总数据
      */
-    public BudgetSummary getBudgetSummary(String tripId, Trip trip) throws ExecutionException, InterruptedException {
-        log.info("生成预算汇总: tripId={}", tripId);
+    public BudgetSummary getBudgetSummary(Trip trip) throws ExecutionException, InterruptedException {
+        log.info("生成预算汇总: tripId={}", trip.getId());
 
         // 1. 统计预算
         Map<String, Long> plannedBudget = calculatePlannedBudget(trip);
 
-        // 2. 统计开销
-        Map<String, Long> actualExpense = expenseService.calculateExpenseByCategory(tripId);
+        // 2. 统计开销（需要通过tripId查询，因为开销是独立存储的）
+        Map<String, Long> actualExpense = expenseService.calculateExpenseByCategory(trip.getId());
 
         // 3. 构建汇总对象
         BudgetSummary summary = new BudgetSummary();
-        summary.setTripId(tripId);
+        summary.setTripId(trip.getId());
         summary.setPlannedBudget(plannedBudget);
         summary.setActualExpense(actualExpense);
         summary.setTotalPlanned(calculateTotal(plannedBudget));
@@ -94,7 +93,44 @@ public class BudgetService {
     }
 
     /**
+     * 获取预算信息（仅预算，不含实际开销）
+     *
+     * @param trip 行程对象
+     * @return 预算信息
+     */
+    public BudgetInfo getBudgetInfo(Trip trip) {
+        log.info("获取预算信息: tripId={}", trip.getId());
+
+        // 1. 计算各分类预算
+        Map<String, Long> categoryBudget = calculatePlannedBudget(trip);
+
+        // 2. 计算总预算
+        long totalBudget = calculateTotal(categoryBudget);
+
+        // 3. 构建响应对象
+        BudgetInfo budgetInfo = new BudgetInfo();
+        budgetInfo.setTripId(trip.getId());
+        budgetInfo.setTotalBudget(totalBudget);
+        budgetInfo.setCategoryBudget(categoryBudget);
+
+        log.info("预算信息获取完成: 总预算={}, 分类预算={}", totalBudget, categoryBudget);
+        return budgetInfo;
+    }
+
+    /**
+     * 预算信息数据传输对象
+     * 仅包含预算信息，不包含实际开销
+     */
+    @lombok.Data
+    public static class BudgetInfo {
+        private String tripId;
+        private long totalBudget;                 // 总预算（分）
+        private Map<String, Long> categoryBudget; // 各分类预算（分），key为活动类型的value值（如"transport"）
+    }
+
+    /**
      * 预算汇总数据传输对象
+     * 包含预算和实际开销的对比分析
      */
     @lombok.Data
     public static class BudgetSummary {

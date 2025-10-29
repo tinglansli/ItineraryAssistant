@@ -238,7 +238,7 @@ class BudgetServiceTest {
         when(expenseService.calculateExpenseByCategory(testTripId)).thenReturn(actualExpense);
 
         // When
-        BudgetService.BudgetSummary summary = budgetService.getBudgetSummary(testTripId, testTrip);
+        BudgetService.BudgetSummary summary = budgetService.getBudgetSummary(testTrip);
 
         // Then
         assertNotNull(summary);
@@ -269,7 +269,7 @@ class BudgetServiceTest {
         when(expenseService.calculateExpenseByCategory(testTripId)).thenReturn(new HashMap<>());
 
         // When
-        BudgetService.BudgetSummary summary = budgetService.getBudgetSummary(testTripId, testTrip);
+        BudgetService.BudgetSummary summary = budgetService.getBudgetSummary(testTrip);
 
         // Then
         assertNotNull(summary);
@@ -285,7 +285,7 @@ class BudgetServiceTest {
 
         // When & Then
         assertThrows(ExecutionException.class, () -> {
-            budgetService.getBudgetSummary(testTripId, testTrip);
+            budgetService.getBudgetSummary(testTrip);
         });
 
         verify(expenseService, times(1)).calculateExpenseByCategory(testTripId);
@@ -302,12 +302,107 @@ class BudgetServiceTest {
         when(expenseService.calculateExpenseByCategory(testTripId)).thenReturn(new HashMap<>());
 
         // When
-        BudgetService.BudgetSummary summary = budgetService.getBudgetSummary(testTripId, nullDaysTrip);
+        BudgetService.BudgetSummary summary = budgetService.getBudgetSummary(nullDaysTrip);
 
         // Then
         assertNotNull(summary);
         assertEquals(0L, summary.getTotalPlanned());
         assertEquals(0L, summary.getTotalActual());
+    }
+
+    @Test
+    void testGetBudgetInfo_success() {
+        // When
+        BudgetService.BudgetInfo budgetInfo = budgetService.getBudgetInfo(testTrip);
+
+        // Then
+        assertNotNull(budgetInfo);
+        assertEquals(testTripId, budgetInfo.getTripId());
+        
+        // 验证总预算
+        assertEquals(36500L, budgetInfo.getTotalBudget());  // 500 + 3000 + 8000 + 25000
+        
+        // 验证分类预算
+        assertNotNull(budgetInfo.getCategoryBudget());
+        assertEquals(500L, budgetInfo.getCategoryBudget().get("transport"));
+        assertEquals(3000L, budgetInfo.getCategoryBudget().get("food"));
+        assertEquals(8000L, budgetInfo.getCategoryBudget().get("sight"));
+        assertEquals(25000L, budgetInfo.getCategoryBudget().get("hotel"));
+        assertEquals(0L, budgetInfo.getCategoryBudget().get("other"));
+    }
+
+    @Test
+    void testGetBudgetInfo_withEmptyTrip() {
+        // Given
+        Trip emptyTrip = Trip.builder()
+                .id("empty-trip")
+                .days(null)
+                .build();
+
+        // When
+        BudgetService.BudgetInfo budgetInfo = budgetService.getBudgetInfo(emptyTrip);
+
+        // Then
+        assertNotNull(budgetInfo);
+        assertEquals("empty-trip", budgetInfo.getTripId());
+        assertEquals(0L, budgetInfo.getTotalBudget());
+        
+        // 验证所有分类都是0
+        assertEquals(0L, budgetInfo.getCategoryBudget().get("transport"));
+        assertEquals(0L, budgetInfo.getCategoryBudget().get("hotel"));
+        assertEquals(0L, budgetInfo.getCategoryBudget().get("sight"));
+        assertEquals(0L, budgetInfo.getCategoryBudget().get("food"));
+        assertEquals(0L, budgetInfo.getCategoryBudget().get("other"));
+    }
+
+    @Test
+    void testGetBudgetInfo_withNullCosts() {
+        // Given - 创建一个活动成本为null的行程
+        Activity activityWithNullCost = Activity.builder()
+                .id("activity-null")
+                .type("food")
+                .title("免费餐")
+                .estimatedCost(null)  // null成本
+                .build();
+
+        Day day = Day.builder()
+                .dayIndex(1)
+                .date(LocalDate.of(2024, 11, 1))
+                .activities(Collections.singletonList(activityWithNullCost))
+                .build();
+
+        Trip tripWithNullCosts = Trip.builder()
+                .id("trip-null-costs")
+                .days(Collections.singletonList(day))
+                .build();
+
+        // When
+        BudgetService.BudgetInfo budgetInfo = budgetService.getBudgetInfo(tripWithNullCosts);
+
+        // Then
+        assertNotNull(budgetInfo);
+        assertEquals(0L, budgetInfo.getTotalBudget());
+        assertEquals(0L, budgetInfo.getCategoryBudget().get("food"));
+    }
+
+    @Test
+    void testBudgetInfo_dataTransferObject() {
+        // Given
+        Map<String, Long> categoryBudget = new HashMap<>();
+        categoryBudget.put("food", 5000L);
+        categoryBudget.put("transport", 1000L);
+
+        // When
+        BudgetService.BudgetInfo budgetInfo = new BudgetService.BudgetInfo();
+        budgetInfo.setTripId("trip-info-test");
+        budgetInfo.setTotalBudget(6000L);
+        budgetInfo.setCategoryBudget(categoryBudget);
+
+        // Then
+        assertEquals("trip-info-test", budgetInfo.getTripId());
+        assertEquals(6000L, budgetInfo.getTotalBudget());
+        assertEquals(5000L, budgetInfo.getCategoryBudget().get("food"));
+        assertEquals(1000L, budgetInfo.getCategoryBudget().get("transport"));
     }
 
     @Test
