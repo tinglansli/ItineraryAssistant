@@ -28,7 +28,12 @@ public class Expense {
     private String tripId;
     
     /**
-     * 支出类别：food、ticket、hotel、transport、other
+     * 支出类别：
+     * - transport（交通）
+     * - hotel（住宿）
+     * - sight（景点）
+     * - food（餐厅）
+     * - other（其他）
      */
     private String category;
     

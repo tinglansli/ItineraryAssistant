@@ -52,40 +52,31 @@ public class ExpenseRepositoryTest {
     void testSave() throws ExecutionException, InterruptedException {
         log.info("=== 测试1: 保存单个支出 ===");
         
-        Expense expense = createTestExpense(TEST_EXPENSE_ID_1, "food", 65000L, "午餐：一兰拉面");
+        // 保存第一条支出
+        Expense expense1 = createTestExpense(TEST_EXPENSE_ID_1, "food", 65000L, "午餐：一兰拉面");
+        expenseRepository.save(TEST_TRIP_ID, expense1);
         
-        expenseRepository.save(TEST_TRIP_ID, expense);
+        // 保存第二条支出
+        Expense expense2 = createTestExpense(TEST_EXPENSE_ID_2, "ticket", 8000L, "门票：浅草寺");
+        expenseRepository.save(TEST_TRIP_ID, expense2);
+        
+        // 保存第三条支出
+        Expense expense3 = createTestExpense(TEST_EXPENSE_ID_3, "transport", 1200L, "地铁");
+        expenseRepository.save(TEST_TRIP_ID, expense3);
         
         Optional<Expense> saved = expenseRepository.findById(TEST_TRIP_ID, TEST_EXPENSE_ID_1);
         assertTrue(saved.isPresent(), "应该能找到保存的支出");
         assertEquals("food", saved.get().getCategory());
         assertEquals(65000L, saved.get().getAmountCents());
         
-        log.info("✅ 单个支出保存成功");
+        log.info("✅ 已保存3条测试支出");
     }
 
     @Test
     @Order(2)
-    @DisplayName("2. 测试批量保存支出")
-    void testSaveAll() throws ExecutionException, InterruptedException {
-        log.info("=== 测试2: 批量保存支出 ===");
-        
-        Expense expense2 = createTestExpense(TEST_EXPENSE_ID_2, "ticket", 15000L, "门票：清水寺");
-        Expense expense3 = createTestExpense(TEST_EXPENSE_ID_3, "transport", 5000L, "地铁");
-        
-        expenseRepository.saveAll(TEST_TRIP_ID, Arrays.asList(expense2, expense3));
-        
-        List<Expense> all = expenseRepository.findByTripId(TEST_TRIP_ID);
-        assertEquals(3, all.size(), "应该有3条支出记录");
-        
-        log.info("✅ 批量保存成功，共 {} 条支出", all.size());
-    }
-
-    @Test
-    @Order(3)
-    @DisplayName("3. 测试按行程ID查询所有支出")
+    @DisplayName("2. 测试按行程ID查询所有支出")
     void testFindByTripId() throws ExecutionException, InterruptedException {
-        log.info("=== 测试3: 按行程ID查询所有支出 ===");
+        log.info("=== 测试2: 按行程ID查询所有支出 ===");
         
         List<Expense> expenses = expenseRepository.findByTripId(TEST_TRIP_ID);
         
@@ -96,10 +87,10 @@ public class ExpenseRepositoryTest {
     }
 
     @Test
-    @Order(4)
-    @DisplayName("4. 测试按类别查询支出")
+    @Order(3)
+    @DisplayName("3. 测试按类别查询支出")
     void testFindByTripIdAndCategory() throws ExecutionException, InterruptedException {
-        log.info("=== 测试4: 按类别查询支出 ===");
+        log.info("=== 测试3: 按类别查询支出 ===");
         
         List<Expense> foodExpenses = expenseRepository.findByTripIdAndCategory(TEST_TRIP_ID, "food");
         List<Expense> ticketExpenses = expenseRepository.findByTripIdAndCategory(TEST_TRIP_ID, "ticket");
@@ -112,41 +103,10 @@ public class ExpenseRepositoryTest {
     }
 
     @Test
-    @Order(5)
-    @DisplayName("5. 测试计算总支出")
-    void testCalculateTotalExpense() throws ExecutionException, InterruptedException {
-        log.info("=== 测试5: 计算总支出 ===");
-        
-        long total = expenseRepository.calculateTotalExpense(TEST_TRIP_ID);
-        
-        assertEquals(85000L, total, "总支出应该是 85000 分");
-        
-        log.info("✅ 总支出: {} 分 ({}元)", total, total / 100.0);
-    }
-
-    @Test
-    @Order(6)
-    @DisplayName("6. 测试按类别统计支出")
-    void testCalculateExpenseByCategory() throws ExecutionException, InterruptedException {
-        log.info("=== 测试6: 按类别统计支出 ===");
-        
-        Map<String, Long> categoryTotals = expenseRepository.calculateExpenseByCategory(TEST_TRIP_ID);
-        
-        assertEquals(3, categoryTotals.size(), "应该有3个类别");
-        assertEquals(65000L, categoryTotals.get("food"));
-        assertEquals(15000L, categoryTotals.get("ticket"));
-        assertEquals(5000L, categoryTotals.get("transport"));
-        
-        log.info("✅ 类别统计:");
-        categoryTotals.forEach((category, amount) -> 
-            log.info("   - {}: {} 分", category, amount));
-    }
-
-    @Test
-    @Order(7)
-    @DisplayName("7. 测试删除单个支出")
+    @Order(4)
+    @DisplayName("4. 测试删除单个支出")
     void testDelete() throws ExecutionException, InterruptedException {
-        log.info("=== 测试7: 删除单个支出 ===");
+        log.info("=== 测试4: 删除单个支出 ===");
         
         expenseRepository.delete(TEST_TRIP_ID, TEST_EXPENSE_ID_1);
         
@@ -156,10 +116,7 @@ public class ExpenseRepositoryTest {
         List<Expense> remaining = expenseRepository.findByTripId(TEST_TRIP_ID);
         assertEquals(2, remaining.size(), "应该剩余2条支出");
         
-        long newTotal = expenseRepository.calculateTotalExpense(TEST_TRIP_ID);
-        assertEquals(20000L, newTotal, "新的总支出应该是 20000 分");
-        
-        log.info("✅ 删除成功，剩余 {} 条支出，总计: {} 分", remaining.size(), newTotal);
+        log.info("✅ 删除成功，剩余 {} 条支出", remaining.size());
     }
 
     @AfterAll

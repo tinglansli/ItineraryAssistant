@@ -44,31 +44,6 @@ public class ExpenseRepository {
     }
 
     /**
-     * 批量保存支出记录
-     */
-    public void saveAll(String tripId, List<Expense> expenses) throws ExecutionException, InterruptedException {
-        if (expenses == null || expenses.isEmpty()) {
-            return;
-        }
-
-        CollectionReference expensesRef = firestore
-                .collection(COLLECTION_TRIPS)
-                .document(tripId)
-                .collection(COLLECTION_EXPENSES);
-
-        WriteBatch batch = firestore.batch();
-        for (Expense expense : expenses) {
-            DocumentReference docRef = expensesRef.document(expense.getId());
-            batch.set(docRef, convertExpenseToMap(expense));
-        }
-        
-        ApiFuture<List<WriteResult>> result = batch.commit();
-        result.get();
-        
-        log.info("批量保存支出到 Firestore: tripId={}, count={}", tripId, expenses.size());
-    }
-
-    /**
      * 根据ID获取单个支出记录
      */
     public Optional<Expense> findById(String tripId, String expenseId) 
@@ -132,36 +107,6 @@ public class ExpenseRepository {
         return documents.stream()
                 .map(this::convertDocumentToExpense)
                 .collect(Collectors.toList());
-    }
-
-    /**
-     * 计算某个行程的总支出
-     */
-    public long calculateTotalExpense(String tripId) throws ExecutionException, InterruptedException {
-        List<Expense> expenses = findByTripId(tripId);
-        long total = expenses.stream()
-                .mapToLong(Expense::getAmountCents)
-                .sum();
-        
-        log.debug("计算行程总支出: tripId={}, total={}", tripId, total);
-        return total;
-    }
-
-    /**
-     * 按类别统计支出
-     */
-    public Map<String, Long> calculateExpenseByCategory(String tripId) 
-            throws ExecutionException, InterruptedException {
-        List<Expense> expenses = findByTripId(tripId);
-        
-        Map<String, Long> categoryTotals = expenses.stream()
-                .collect(Collectors.groupingBy(
-                        Expense::getCategory,
-                        Collectors.summingLong(Expense::getAmountCents)
-                ));
-        
-        log.debug("按类别统计支出: tripId={}, categories={}", tripId, categoryTotals.keySet());
-        return categoryTotals;
     }
 
     /**
