@@ -56,6 +56,7 @@ class XfyunAsrClientTest {
      * 测试大文件转写（大于30MB，使用分块上传）
      */
     @Test
+    @Disabled("仅在需要时运行此测试")
     void testTranscribeLargeFile() throws Exception {
         // 替换为实际的大文件路径
         File audioFile = new File("src/test/resources/test-audio-large.wav");

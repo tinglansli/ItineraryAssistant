@@ -4,6 +4,7 @@ import com.alibaba.dashscope.common.Message;
 import com.alibaba.dashscope.common.Role;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -42,6 +43,7 @@ class QwenClientTest {
      * 测试带系统提示的对话
      */
     @Test
+    @Disabled("仅在需要时运行此测试")
     void testChatWithSystemPrompt() {
         String systemPrompt = "你是一个旅行规划专家，请用专业且友好的语气回答问题。";
         String userMessage = "推荐一个适合周末去的城市。";
@@ -61,6 +63,7 @@ class QwenClientTest {
      * 测试结构化 JSON 输出
      */
     @Test
+    @Disabled("仅在需要时运行此测试")
     void testJsonOutput() throws Exception {
         String systemPrompt = """
             你是一个数据分析助手。
@@ -95,6 +98,7 @@ class QwenClientTest {
     /**
      * 测试多轮对话
      */
+    @Disabled("仅在需要时运行此测试")
     @Test
     void testMultiTurnChat() {
         List<Message> messages = new ArrayList<>();
@@ -137,6 +141,7 @@ class QwenClientTest {
      * 测试生成旅行行程规划 (核心功能)
      */
     @Test
+    @Disabled("仅在需要时运行此测试")
     void testGenerateItinerary() throws Exception {
         String destination = "日本京都";
         int days = 3;
@@ -184,6 +189,7 @@ class QwenClientTest {
      * 测试结构化输出 - 支出分类建议
      */
     @Test
+    @Disabled("仅在需要时运行此测试")
     void testExpenseCategorySuggestion() throws Exception {
         String systemPrompt = """
             你是一个智能支出分类助手。

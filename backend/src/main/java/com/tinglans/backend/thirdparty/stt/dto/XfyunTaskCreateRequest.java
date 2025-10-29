@@ -43,12 +43,15 @@ public class XfyunTaskCreateRequest {
         @JSONField(name = "callback_url")
         private String callbackUrl;
 
+        @Builder.Default
         @JSONField(name = "vspp_on")
         private Integer vsppOn = 0;  // 是否开启说话人分离
 
+        @Builder.Default
         @JSONField(name = "speaker_num")
         private Integer speakerNum = 0;  // 说话人个数
 
+        @Builder.Default
         @JSONField(name = "postproc_on")
         private Integer postprocOn = 1;  // 后处理开关
 
@@ -63,6 +66,7 @@ public class XfyunTaskCreateRequest {
         @JSONField(name = "audio_url")
         private String audioUrl;
 
+        @Builder.Default
         @JSONField(name = "audio_src")
         private String audioSrc = "http";  // 音频来源类型
 

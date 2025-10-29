@@ -42,6 +42,7 @@ public class XfyunUploadRequest {
         @JSONField(name = "app_id")
         private String appId;
 
+        @Builder.Default
         @JSONField(name = "cloud_id")
         private String cloudId = "0"; // 0代表公有云
     }
