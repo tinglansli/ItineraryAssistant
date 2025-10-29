@@ -5,6 +5,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDate;
 import java.util.List;
 
 /**
@@ -21,6 +22,11 @@ public class Day {
      * 第几天（从1开始）
      */
     private Integer dayIndex;
+    
+    /**
+     * 日期
+     */
+    private LocalDate date;
     
     /**
      * 该天的活动列表

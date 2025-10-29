@@ -80,7 +80,6 @@ public class TripRepository {
         data.put("totalBudget", trip.getTotalBudget());
         data.put("headcount", convertHeadcountToMap(trip.getHeadcount()));
         data.put("preferences", trip.getPreferences());
-        data.put("confirmed", trip.getConfirmed());
         data.put("createdAt", trip.getCreatedAt());
         data.put("updatedAt", trip.getUpdatedAt());
         
@@ -115,14 +114,13 @@ public class TripRepository {
     }
 
     /**
-     * 根据用户ID查询已确认的行程列表
+     * 根据用户ID查询行程列表
      */
     public List<Trip> findConfirmedTripsByUserId(String userId) 
             throws ExecutionException, InterruptedException {
         CollectionReference tripsRef = firestore.collection(COLLECTION_TRIPS);
         Query query = tripsRef
                 .whereEqualTo("userId", userId)
-                .whereEqualTo("confirmed", true)
                 .orderBy("createdAt", Query.Direction.DESCENDING);
 
         ApiFuture<QuerySnapshot> future = query.get();
@@ -213,7 +211,6 @@ public class TripRepository {
                 .totalBudget(doc.getLong("totalBudget"))
                 .headcount(headcount)
                 .preferences((List<String>) doc.get("preferences"))
-                .confirmed(doc.getBoolean("confirmed"))
                 .createdAt(doc.getDate("createdAt").toInstant())
                 .updatedAt(doc.getDate("updatedAt").toInstant())
                 .days(days)

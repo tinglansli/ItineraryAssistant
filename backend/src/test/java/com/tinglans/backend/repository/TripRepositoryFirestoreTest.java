@@ -86,7 +86,6 @@ public class TripRepositoryFirestoreTest {
                         .build())
                 .preferences(Arrays.asList("美食", "文化", "亲子"))
                 .days(Arrays.asList(day1))
-                .confirmed(false)
                 .createdAt(Instant.now())
                 .updatedAt(Instant.now())
                 .build();
@@ -99,7 +98,6 @@ public class TripRepositoryFirestoreTest {
         log.info("=== 测试1: 插入 Trip ===");
         
         Trip trip = createTestTrip(TEST_TRIP_ID, "日本京都3日游");
-        trip.setConfirmed(true);
         
         tripRepository.saveToFirestore(trip);
         
@@ -119,11 +117,9 @@ public class TripRepositoryFirestoreTest {
         Trip trip = result.get();
         assertEquals(TEST_TRIP_ID, trip.getId(), "Trip ID 应该匹配");
         assertEquals("日本京都3日游", trip.getTitle(), "Trip title 应该是 '日本京都3日游'");
-        assertTrue(trip.getConfirmed(), "Trip confirmed 应该是 true");
         assertEquals("日本 京都", trip.getDestination(), "Trip destination 应该匹配");
         
-        log.info("✅ 验证成功: title={}, destination={}, confirmed={}", 
-                trip.getTitle(), trip.getDestination(), trip.getConfirmed());
+        log.info("✅ 验证成功: title={}, destination={}", trip.getTitle(), trip.getDestination());
         log.info("✅ Firestore 数据库验证通过！数据已成功持久化并可正确读取");
     }
 

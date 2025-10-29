@@ -76,11 +76,6 @@ public class Trip {
     private List<Day> days;
     
     /**
-     * 是否已确认（确认后会存入数据库）
-     */
-    private Boolean confirmed;
-    
-    /**
      * 创建时间
      */
     private Instant createdAt;

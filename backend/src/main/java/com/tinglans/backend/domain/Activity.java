@@ -26,7 +26,12 @@ public class Activity {
     private Integer dayIndex;
     
     /**
-     * 活动类型：sight（景点）、food（餐饮）、hotel（酒店）、transport（交通）
+     * 活动类型（即开销类别）：
+     * - transport（交通）
+     * - hotel（住宿）
+     * - sight（景点）
+     * - food（餐厅）
+     * - other（其他）
      */
     private String type;
     

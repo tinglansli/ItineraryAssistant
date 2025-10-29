@@ -26,15 +26,13 @@ public class TripRepositoryRedisTest {
     @Autowired
     private TripRepository tripRepository;
 
-    private static final String TEST_TRIP_ID_1 = "test-trip-001";
-    private static final String TEST_TRIP_ID_2 = "test-trip-002";
-    private static final String TEST_TRIP_ID_3 = "test-trip-003";
-    private static final String TEST_USER_ID = "test-user-001";
+    private static final String TEST_TRIP_ID_1 = "test-redis-trip-001";
+    private static final String TEST_TRIP_ID_2 = "test-redis-trip-002";
+    private static final String TEST_TRIP_ID_3 = "test-redis-trip-003";
+    private static final String TEST_USER_ID = "test-redis-user-001";
 
     private Trip createTestTrip(String tripId, String title) {
         Activity activity1 = Activity.builder()
-                .id("activity-001")
-                .dayIndex(1)
                 .type("sight")
                 .title("参观伏见稻荷大社")
                 .locationName("伏见稻荷大社")
@@ -48,8 +46,6 @@ public class TripRepositoryRedisTest {
                 .build();
 
         Activity activity2 = Activity.builder()
-                .id("activity-002")
-                .dayIndex(1)
                 .type("food")
                 .title("一兰拉面午餐")
                 .locationName("一兰拉面 京都河原町店")
@@ -64,6 +60,7 @@ public class TripRepositoryRedisTest {
 
         Day day1 = Day.builder()
                 .dayIndex(1)
+                .date(LocalDate.of(2025, 11, 1))
                 .activities(Arrays.asList(activity1, activity2))
                 .build();
 
@@ -74,66 +71,126 @@ public class TripRepositoryRedisTest {
                 .destination("日本 京都")
                 .startDate(LocalDate.of(2025, 11, 1))
                 .endDate(LocalDate.of(2025, 11, 3))
-                .currency("CNY")
-                .totalBudget(1000000L)
-                .headcount(Trip.Headcount.builder()
-                        .adults(2)
-                        .children(1)
-                        .build())
-                .preferences(Arrays.asList("美食", "文化", "亲子"))
                 .days(Arrays.asList(day1))
-                .confirmed(false)
                 .createdAt(Instant.now())
-                .updatedAt(Instant.now())
                 .build();
     }
 
     @Test
     @Order(1)
-    @DisplayName("1. 保存多个行程到 Redis 并验证")
-    void testSaveMultipleTripsToCache() {
-        log.info("=== 测试: 保存多个行程到 Redis ===");
+    @DisplayName("1. 保存行程到 Redis 缓存")
+    void testSaveTripToCache() {
+        log.info("=== 测试: 保存行程到 Redis 缓存 ===");
         
-        // 创建并保存 3 个行程
-        Trip trip1 = createTestTrip(TEST_TRIP_ID_1, "日本京都3日游");
-        Trip trip2 = createTestTrip(TEST_TRIP_ID_2, "日本大阪5日游");
-        Trip trip3 = createTestTrip(TEST_TRIP_ID_3, "日本东京7日游");
+        Trip trip = createTestTrip(TEST_TRIP_ID_1, "京都三日游");
+        tripRepository.saveToCache(trip);
         
-        tripRepository.saveToCache(trip1);
-        tripRepository.saveToCache(trip2);
-        tripRepository.saveToCache(trip3);
+        log.info("✅ 已保存行程到 Redis: id={}, title={}", TEST_TRIP_ID_1, trip.getTitle());
+    }
+
+    @Test
+    @Order(2)
+    @DisplayName("2. 从 Redis 缓存获取行程")
+    void testGetTripFromCache() {
+        log.info("=== 测试: 从 Redis 缓存获取行程 ===");
         
-        log.info("✅ 已保存 3 个行程到 Redis:");
-        log.info("   - {}: {}", TEST_TRIP_ID_1, trip1.getTitle());
-        log.info("   - {}: {}", TEST_TRIP_ID_2, trip2.getTitle());
-        log.info("   - {}: {}", TEST_TRIP_ID_3, trip3.getTitle());
-        log.info("");
-        log.info("📌 请手动检查 Redis:");
-        log.info("   docker exec redis-dev redis-cli KEYS \"trip:*\"");
-        log.info("   docker exec redis-dev redis-cli GET \"trip:test-trip-001\"");
-        log.info("");
-        log.info("📌 数据将在 30 分钟 (1800秒) 后自动过期删除");
+        // 先保存
+        Trip trip = createTestTrip(TEST_TRIP_ID_2, "大阪五日游");
+        tripRepository.saveToCache(trip);
         
-        // 验证可以读取
-        Optional<Trip> cached1 = tripRepository.getFromCache(TEST_TRIP_ID_1);
-        Optional<Trip> cached2 = tripRepository.getFromCache(TEST_TRIP_ID_2);
-        Optional<Trip> cached3 = tripRepository.getFromCache(TEST_TRIP_ID_3);
+        // 再查询
+        Optional<Trip> cached = tripRepository.getFromCache(TEST_TRIP_ID_2);
         
-        assertTrue(cached1.isPresent(), "应该能从 Redis 获取到行程1");
-        assertTrue(cached2.isPresent(), "应该能从 Redis 获取到行程2");
-        assertTrue(cached3.isPresent(), "应该能从 Redis 获取到行程3");
+        assertTrue(cached.isPresent(), "应该能从 Redis 获取到行程");
+        assertEquals(TEST_TRIP_ID_2, cached.get().getId());
+        assertEquals("大阪五日游", cached.get().getTitle());
+        assertEquals(TEST_USER_ID, cached.get().getUserId());
+        assertEquals("日本 京都", cached.get().getDestination());
+        assertEquals(1, cached.get().getDays().size());
+        assertEquals(2, cached.get().getDays().get(0).getActivities().size());
         
-        assertEquals("日本京都3日游", cached1.get().getTitle());
-        assertEquals("日本大阪5日游", cached2.get().getTitle());
-        assertEquals("日本东京7日游", cached3.get().getTitle());
+        log.info("✅ Redis 查询成功: {}", cached.get().getTitle());
+    }
+
+    @Test
+    @Order(3)
+    @DisplayName("3. 查询不存在的行程")
+    void testGetNonExistentTrip() {
+        log.info("=== 测试: 查询不存在的行程 ===");
         
-        log.info("✅ Redis 读取验证通过 - 所有数据完整");
+        Optional<Trip> result = tripRepository.getFromCache("non-existent-id");
+        
+        assertFalse(result.isPresent(), "不存在的行程应该返回 empty");
+        log.info("✅ 不存在的行程正确返回 empty");
+    }
+
+    @Test
+    @Order(4)
+    @DisplayName("4. 更新缓存中的行程")
+    void testUpdateCachedTrip() {
+        log.info("=== 测试: 更新缓存中的行程 ===");
+        
+        // 保存初始版本
+        Trip trip = createTestTrip(TEST_TRIP_ID_3, "东京七日游");
+        tripRepository.saveToCache(trip);
+        
+        // 修改并重新保存
+        trip.setTitle("东京七日游（已修改）");
+        trip.setDestination("日本 东京");
+        tripRepository.saveToCache(trip);
+        
+        // 验证更新
+        Optional<Trip> updated = tripRepository.getFromCache(TEST_TRIP_ID_3);
+        
+        assertTrue(updated.isPresent());
+        assertEquals("东京七日游（已修改）", updated.get().getTitle());
+        assertEquals("日本 东京", updated.get().getDestination());
+        
+        log.info("✅ Redis 更新成功: {}", updated.get().getTitle());
+    }
+
+    @Test
+    @Order(5)
+    @DisplayName("5. 删除 Redis 缓存中的行程")
+    void testDeleteTripFromCache() {
+        log.info("=== 测试: 删除 Redis 缓存中的行程 ===");
+        
+        // 保存一个行程
+        Trip trip = createTestTrip("test-redis-trip-delete", "待删除的行程");
+        tripRepository.saveToCache(trip);
+        
+        // 验证存在
+        Optional<Trip> beforeDelete = tripRepository.getFromCache("test-redis-trip-delete");
+        assertTrue(beforeDelete.isPresent(), "删除前应该存在");
+        log.info("✅ 删除前验证通过: 行程存在");
+        
+        // 删除
+        tripRepository.deleteFromCache("test-redis-trip-delete");
+        
+        // 验证已删除
+        Optional<Trip> afterDelete = tripRepository.getFromCache("test-redis-trip-delete");
+        assertFalse(afterDelete.isPresent(), "删除后应该不存在");
+        
+        log.info("✅ Redis 删除成功: 行程已被移除");
+    }
+
+    @AfterEach
+    void cleanupAfterEach() {
+        // 每个测试后清理测试数据
+        try {
+            tripRepository.deleteFromCache(TEST_TRIP_ID_1);
+            tripRepository.deleteFromCache(TEST_TRIP_ID_2);
+            tripRepository.deleteFromCache(TEST_TRIP_ID_3);
+            tripRepository.deleteFromCache("test-redis-trip-delete");
+            log.debug("测试数据清理完成");
+        } catch (Exception e) {
+            log.warn("清理测试数据时出错: {}", e.getMessage());
+        }
     }
 
     @AfterAll
     static void cleanup() {
-        log.info("=== 测试完成 ===");
-        log.info("📌 Redis 中的数据将在 30 分钟后自动过期");
-        log.info("📌 如需手动清理: docker exec redis-dev redis-cli FLUSHDB");
+        log.info("=== Redis 缓存测试完成 ===");
+        log.info("✅ 所有测试数据已自动清理");
     }
 }
