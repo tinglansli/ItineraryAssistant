@@ -1,5 +1,6 @@
 package com.tinglans.backend.service;
 
+import com.tinglans.backend.common.BusinessException;
 import com.tinglans.backend.domain.Expense;
 import com.tinglans.backend.repository.ExpenseRepository;
 import com.tinglans.backend.thirdparty.llm.QwenClient;
@@ -184,9 +185,10 @@ class ExpenseServiceTest {
         when(qwenClient.chat(anyString(), eq(userInput))).thenReturn(invalidJson);
 
         // When & Then
-        assertThrows(RuntimeException.class, () -> {
+        BusinessException exception = assertThrows(BusinessException.class, () -> {
             expenseService.createExpenseFromText(testTripId, userInput);
         });
+        assertEquals("Invalid JSON format for expense data", exception.getMessage());
 
         verify(qwenClient, times(1)).chat(anyString(), eq(userInput));
         verify(expenseRepository, never()).save(anyString(), any(Expense.class));

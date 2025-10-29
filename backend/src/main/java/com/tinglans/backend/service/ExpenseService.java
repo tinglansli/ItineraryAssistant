@@ -2,12 +2,15 @@ package com.tinglans.backend.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.tinglans.backend.common.BusinessException;
+import com.tinglans.backend.common.ResponseCode;
 import com.tinglans.backend.domain.Expense;
 import com.tinglans.backend.repository.ExpenseRepository;
 import com.tinglans.backend.thirdparty.llm.QwenClient;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 import java.time.Instant;
 import java.util.List;
@@ -29,6 +32,19 @@ public class ExpenseService {
     private final QwenClient qwenClient;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
+    // ==================== 校验方法 ====================
+
+    /**
+     * 校验文本输入
+     */
+    public void validateTextInput(String textInput) {
+        if (!StringUtils.hasText(textInput)) {
+            throw new BusinessException(ResponseCode.INVALID_PARAM, "文本输入不能为空");
+        }
+    }
+
+    // ==================== 业务方法 ====================
+
     /**
      * 从文本创建开销记录
      *
@@ -38,6 +54,8 @@ public class ExpenseService {
      */
     public Expense createExpenseFromText(String tripId, String textInput) 
             throws ExecutionException, InterruptedException {
+        validateTextInput(textInput);
+        
         log.info("从文本创建开销记录: tripId={}, input={}", tripId, textInput);
 
         // 1. LLM 解析文本中的金额和类别（业务逻辑）
@@ -132,9 +150,12 @@ public class ExpenseService {
             log.debug("开销 JSON 解析成功: category={}, amount={}", category, amountCents);
             return expense;
             
+        } catch (com.fasterxml.jackson.core.JsonParseException e) {
+            log.error("开销 JSON 解析失败: {}", json);
+            throw new BusinessException(ResponseCode.BAD_REQUEST, "Invalid JSON format for expense data");
         } catch (Exception e) {
-            log.error("开销 JSON 解析失败: {}", json, e);
-            throw new RuntimeException("开销 JSON 解析失败: " + e.getMessage(), e);
+            log.error("开销 JSON 解析过程中发生未知错误: {}", json, e);
+            throw new BusinessException(ResponseCode.INTERNAL_ERROR, e);
         }
     }
 }
