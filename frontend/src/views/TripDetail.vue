@@ -107,6 +107,18 @@
         </div>
       </div>
     </div>
+
+    <!-- 页面底部中央悬浮操作按钮 -->
+    <div v-if="!tripData?.confirmed" class="floating-actions">
+      <button @click="regenerateTrip" class="action-btn regenerate-btn">
+        <span class="btn-icon">↻</span>
+        <span class="btn-text">重新生成</span>
+      </button>
+      <button @click="confirmTrip" class="action-btn confirm-btn">
+        <span class="btn-icon">✓</span>
+        <span class="btn-text">确认行程</span>
+      </button>
+    </div>
   </div>
 </template>
 
@@ -114,6 +126,7 @@
 import { ref, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import Toast from '@/components/Toast.vue'
+import apiClient from '@/api/auth'
 
 export default {
   name: 'TripDetailView',
@@ -128,6 +141,7 @@ export default {
     // 响应式数据
     const tripData = ref(null)
     const selectedDay = ref('all')
+    const userInput = ref('') // 保存用户原始输入
     let mapInstance = null
     const activityMarkers = new Map() // 存储活动ID到标记和信息窗口的映射
 
@@ -215,6 +229,52 @@ export default {
       router.push({
         name: 'ExpenseRecord',
         params: { tripId: route.params.tripId }
+      })
+    }
+
+    // 确认行程
+    const confirmTrip = async () => {
+      try {
+        const tripId = route.params.tripId
+
+        if (!tripId) {
+          showToast('缺少行程ID', 'error')
+          console.error('tripId 为空:', tripId)
+          return
+        }
+
+        console.log('开始确认行程，tripId:', tripId)
+        
+        // 使用 apiClient 调用确认接口
+        const response = await apiClient.post(`/trips/${tripId}/confirm`)
+        
+        console.log('确认行程响应:', response)
+
+        if (response.success) {
+          showToast('行程已保存', 'success')
+          // 更新本地数据状态，按钮将消失
+          if (tripData.value) {
+            tripData.value.confirmed = true
+          }
+        } else {
+          showToast(response.message || '确认失败', 'error')
+          console.error('确认失败，响应:', response)
+        }
+      } catch (error) {
+        console.error('确认行程失败，详细错误:', error)
+        console.error('错误响应:', error.response)
+        showToast(error.response?.data?.message || '确认失败，请稍后重试', 'error')
+      }
+    }
+
+    // 重新生成行程
+    const regenerateTrip = () => {
+      // 返回创建行程页面，并保留用户输入
+      router.push({
+        name: 'CreateTrip',
+        state: {
+          userInput: userInput.value
+        }
       })
     }
 
@@ -379,6 +439,8 @@ export default {
 
       if (stateData) {
         tripData.value = stateData
+        // 保存用户输入（如果有）
+        userInput.value = history.state?.userInput || ''
       } else if (paramData) {
         tripData.value = paramData
       } else {
@@ -407,7 +469,9 @@ export default {
       getFilteredActivities,
       selectActivity,
       goToBudget,
-      goToExpense
+      goToExpense,
+      confirmTrip,
+      regenerateTrip
     }
   }
 }
@@ -672,6 +736,72 @@ export default {
 .map {
   width: 100%;
   height: 100%;
+}
+
+/* 页面底部中央悬浮操作按钮 */
+.floating-actions {
+  position: fixed;
+  bottom: 5vw;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 2.5vw;  /* 增大按钮之间的间距 */
+  z-index: 200;
+}
+
+.action-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.6vw;
+  padding: 1vw 2vw;
+  border: none;
+  border-radius: 3vw;
+  font-size: 1.1vw;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 0.5vw 2vw rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(10px);
+  letter-spacing: 0.05em;
+}
+
+.action-btn:hover {
+  transform: translateY(-0.2vw);
+  box-shadow: 0 0.8vw 2.5vw rgba(0, 0, 0, 0.3);
+}
+
+.action-btn:active {
+  transform: translateY(0);
+}
+
+.btn-icon {
+  font-size: 1.4vw;
+  font-weight: bold;
+}
+
+.btn-text {
+  font-size: 1.1vw;
+}
+
+.confirm-btn {
+  background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+  color: white;
+}
+
+.confirm-btn:hover {
+  background: linear-gradient(135deg, #38f9d7 0%, #43e97b 100%);
+}
+
+.regenerate-btn {
+  background: rgba(255, 255, 255, 0.95);
+  color: #667eea;
+  border: 0.15vw solid #667eea;
+}
+
+.regenerate-btn:hover {
+  background: rgba(102, 126, 234, 0.1);
+  border-color: #764ba2;
+  color: #764ba2;
 }
 
 /* 浮动活动面板（在地图右侧，上下居中） */

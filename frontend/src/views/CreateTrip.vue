@@ -179,6 +179,20 @@ export default {
         }
       })
     }
+    
+    // 恢复用户输入（从 TripDetail 返回时）
+    onMounted(() => {
+      const savedInput = history.state?.userInput
+      if (savedInput) {
+        userInput.value = savedInput
+        // 调整文本框高度
+        nextTick(() => {
+          if (textareaRef.value) {
+            adjustTextareaHeight()
+          }
+        })
+      }
+    })
 
     // 切换录音状态
     const toggleRecording = async () => {
@@ -294,13 +308,16 @@ export default {
           // 延迟跳转，让用户看到完成状态
           setTimeout(() => {
             isGenerating.value = false
-            // 跳转到行程详情页，携带行程数据
+            // 跳转到行程详情页，携带行程数据和用户输入
             // 注意：后端返回的是 Trip 对象，tripId 在对象内部
             const tripId = response.data.tripId || response.data.id
             router.push({
               name: 'TripDetail',
               params: { tripId: tripId },
-              state: { tripData: response.data }
+              state: { 
+                tripData: response.data,
+                userInput: userInput.value  // 保存用户输入，便于重新生成
+              }
             })
           }, 800)
         } else {
