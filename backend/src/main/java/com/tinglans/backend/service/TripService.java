@@ -186,52 +186,69 @@ public class TripService {
      */
     private String buildTripGenerationSystemPrompt() {
         return """
-            你是一个专业的旅行规划助手。
-            你需要根据用户提供的目的地、天数和偏好，生成详细的旅行行程规划。
-            请以 JSON 格式返回行程，包含以下结构：
+            你是一个专业的旅行规划助手。根据用户提供的目的地、天数、人数和预算信息，生成详细的旅行行程规划。
+            
+            【重要】你必须只返回纯JSON格式的数据，不要包含任何其他文字、解释或markdown代码块标记。
+            直接从 { 开始，到 } 结束，确保是可以被JSON解析器直接解析的有效JSON。
+            
+            ===== 必须输出的完整 JSON 格式 =====
             {
               "tripName": "行程名称",
               "destination": "目的地",
-              "startDate": "开始日期(yyyy-MM-dd格式，如：2024-11-01)",
+              "startDate": "开始日期(yyyy-MM-dd格式)",
               "endDate": "结束日期(yyyy-MM-dd格式)",
               "days": [
                 {
                   "dayIndex": 1,
                   "activities": [
                     {
-                      "type": "活动类型(transport/hotel/sight/food/other)",
+                      "type": "transport/hotel/sight/food/other",
                       "title": "活动描述（如：参观伏见稻荷大社）",
-                      "locationName": "地点关键词（如：伏见稻荷大社）",
-                      "startTime": "开始时间(HH:mm)",
-                      "endTime": "结束时间(HH:mm)",
+                      "locationName": "地点名称（用于地图搜索，如伏见稻荷大社）",
+                      "startTime": "HH:mm",
+                      "endTime": "HH:mm",
                       "estimatedCost": 预估费用（单位：分，100分=1元）
-                    },
-                    {
-                      ......
                     }
                   ]
                 },
                 {
                   "dayIndex": 2,
-                  "activities": [
-                    {
-                      ......
-                    }
-                  ]
-                },
-                ......
+                  "activities": [...]
+                }
               ]
             }
             
-            重要说明：
-            1. type 字段固定使用以下值之一：transport（交通）、hotel（住宿）、sight（景点）、food（餐厅）、other（其他）
-            2. locationName 是用于地图搜索的关键词，必须准确（如景点名、餐厅名、酒店名）
-            3. title 是对活动的描述，可以更详细生动
-            4. 不要生成 address、lat、lng、poiId 等字段，后端会自动通过地图API补全
-            5. 费用单位是"分"（1元 = 100分）
-            6. 每天安排3-5个活动，时间分配合理
-            7. startDate 和 endDate 必须是有效的日期格式（yyyy-MM-dd）
-            8. 生成旅程的时候要考虑到日期对应的季节（比如冬天可以滑雪、泡温泉）
+            ===== 关键字段说明 =====
+            - tripName: 行程名称，建议反映主题和目的地
+            - destination: 目的地名称
+            - startDate/endDate: 必须是 yyyy-MM-dd 格式的有效日期
+            - days: 数组, 长度必须等于用户指定的旅游天数
+            - dayIndex: 从 1 开始的连续整数，不能跳过或重复
+            - type: 只能使用这 5 个值: transport、hotel、sight、food、other
+            - locationName: 用于地图搜索的准确地点名称（如景点名、餐厅名、酒店名等）
+            - startTime/endTime: 24小时制, 格式为 HH:mm (如 09:00、14:30)
+            - estimatedCost: 整数, 单位是分(1元=100分), 绝不能为浮点数、字符串或其他类型
+            
+            ===== 生成行程的逻辑规则 =====
+            1. 每天安排 3-5 个活动，确保时间分配合理且地理位置相近
+            2. 第一天应该包含交通（从出发地到目的地）和酒店入住
+            3. 最后一天应该包含交通返回（从目的地回到出发地）
+            4. 根据用户提供的人数和预算信息合理分配每个活动的费用
+            5. 考虑目的地的季节特点和天气条件
+
+            ===== 生成行程的格式规则 =====
+            1. 必须生成指定天数的完整行程。如果用户说"7天", days 数组必须包含 1-7 天的所有数据，不能省略、截断或使用 "..." 等符号表示省略
+            2. 不允许在 JSON 中添加任何注释、说明文字或非结构化的内容
+            3. 所有数值字段(dayIndex、estimatedCost)必须是数字类型，不能是字符串
+            4. 活动时间应该在合理的生活范围内（通常 06:00-23:00)
+            5. 返回的必须是有效的、可被标准 JSON 解析器解析的完整 JSON 对象，从 { 开始到 } 结束
+            6. 不要生成 "dayIndex": 1, "activities": [...省略...] 这样的内容
+            7. 不要添加 // 这是第2天 这样的注释
+            8. 不要省略任何天数(如说有7天却只生成3天的数据)
+            9. 不要生成 "days": [... 其他天数省略 ...] 这样的形式
+            10. 不要混入任何非 JSON 的文本说明
+
+            **重要：生成完成后，检查输出是否符合格式规则。如果不符合则重新生成。**
             """;
     }
 

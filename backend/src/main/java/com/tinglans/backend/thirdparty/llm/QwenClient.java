@@ -79,7 +79,7 @@ public class QwenClient {
             GenerationResult result = generation.call(param);
             String response = result.getOutput().getChoices().get(0).getMessage().getContent();
             
-            response = cleanJsonResponse(response);
+            response = response.trim();
             
             log.info("LLM 响应成功 - Token: {}/{}", 
                      result.getUsage().getInputTokens(),
@@ -91,34 +91,5 @@ public class QwenClient {
             log.error("LLM API 调用失败: {}", e.getMessage(), e);
             throw new RuntimeException("LLM 调用失败: " + e.getMessage(), e);
         }
-    }
-
-    /**
-     * 清理 JSON 响应中的 Markdown 代码块标记
-     *
-     * @param response 原始响应
-     * @return 清理后的 JSON 字符串
-     */
-    private String cleanJsonResponse(String response) {
-        if (response == null) {
-            return null;
-        }
-        
-        // 移除 Markdown 代码块标记
-        response = response.trim();
-        
-        // 移除 ```json 开头
-        if (response.startsWith("```json")) {
-            response = response.substring(7);
-        } else if (response.startsWith("```")) {
-            response = response.substring(3);
-        }
-        
-        // 移除 ``` 结尾
-        if (response.endsWith("```")) {
-            response = response.substring(0, response.length() - 3);
-        }
-        
-        return response.trim();
     }
 }
