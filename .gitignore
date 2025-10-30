@@ -9,15 +9,22 @@
 /backend/.vscode
 
 # frontend 项目相关
-/frontend/node_modules/
-/frontend/dist/
-/frontend/.env.local
-/frontend/.cache
-/frontend/*.log
-/frontend/.vscode
-/frontend/.idea
+frontend/node_modules/
+frontend/dist/
+frontend/build/
 
-# Maven
+frontend/.env
+frontend/.env.local
+frontend/.env.*.local
+
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*
+frontend/pnpm-debug.log*
+
+frontend/.vscode/
+frontend/.idea/
+
 .mvn/timing.properties
 
 # IDEA
