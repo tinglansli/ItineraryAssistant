@@ -51,11 +51,6 @@ public class Trip {
     private LocalDate endDate;
     
     /**
-     * 货币类型（如 CNY、USD）
-     */
-    private String currency;
-    
-    /**
      * 总预算（分）
      */
     private Long totalBudget;
@@ -64,11 +59,6 @@ public class Trip {
      * 同行人数
      */
     private Headcount headcount;
-    
-    /**
-     * 用户偏好（如：美食、动漫、亲子）
-     */
-    private List<String> preferences;
     
     /**
      * 行程天数列表

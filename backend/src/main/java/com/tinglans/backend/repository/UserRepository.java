@@ -155,7 +155,6 @@ public class UserRepository {
         map.put("email", user.getEmail());
         map.put("passwordHash", user.getPasswordHash());
         map.put("preferences", user.getPreferences());
-        map.put("defaultCurrency", user.getDefaultCurrency());
         map.put("createdAt", user.getCreatedAt());
         map.put("lastLoginAt", user.getLastLoginAt());
         
@@ -170,7 +169,6 @@ public class UserRepository {
                 .email(doc.getString("email"))
                 .passwordHash(doc.getString("passwordHash"))
                 .preferences((List<String>) doc.get("preferences"))
-                .defaultCurrency(doc.getString("defaultCurrency"))
                 .createdAt(doc.getDate("createdAt") != null ? doc.getDate("createdAt").toInstant() : null)
                 .lastLoginAt(doc.getDate("lastLoginAt") != null ? doc.getDate("lastLoginAt").toInstant() : null)
                 .build();

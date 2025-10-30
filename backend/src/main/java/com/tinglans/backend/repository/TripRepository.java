@@ -1,15 +1,18 @@
 package com.tinglans.backend.repository;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.api.core.ApiFuture;
 import com.google.cloud.firestore.*;
 import com.tinglans.backend.domain.Activity;
 import com.tinglans.backend.domain.Day;
 import com.tinglans.backend.domain.Trip;
+import com.tinglans.backend.thirdparty.amap.dto.AmapPoi;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Repository;
 
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.*;
 import java.util.concurrent.ExecutionException;
@@ -76,10 +79,8 @@ public class TripRepository {
         data.put("destination", trip.getDestination());
         data.put("startDate", trip.getStartDate().toString());
         data.put("endDate", trip.getEndDate().toString());
-        data.put("currency", trip.getCurrency());
         data.put("totalBudget", trip.getTotalBudget());
         data.put("headcount", convertHeadcountToMap(trip.getHeadcount()));
-        data.put("preferences", trip.getPreferences());
         data.put("createdAt", trip.getCreatedAt());
         data.put("updatedAt", trip.getUpdatedAt());
         
@@ -168,10 +169,7 @@ public class TripRepository {
         map.put("type", activity.getType());
         map.put("title", activity.getTitle());
         map.put("locationName", activity.getLocationName());
-        map.put("address", activity.getAddress());
-        map.put("lat", activity.getLat());
-        map.put("lng", activity.getLng());
-        map.put("poiId", activity.getPoiId());
+        map.put("poi", activity.getPoi());
         map.put("startTime", activity.getStartTime());
         map.put("endTime", activity.getEndTime());
         map.put("estimatedCost", activity.getEstimatedCost());
@@ -200,6 +198,19 @@ public class TripRepository {
             }
         }
 
+        // 处理可能为 null 的日期字段
+        Instant createdAt = null;
+        Date createdAtDate = doc.getDate("createdAt");
+        if (createdAtDate != null) {
+            createdAt = createdAtDate.toInstant();
+        }
+
+        Instant updatedAt = null;
+        Date updatedAtDate = doc.getDate("updatedAt");
+        if (updatedAtDate != null) {
+            updatedAt = updatedAtDate.toInstant();
+        }
+
         return Trip.builder()
                 .id(doc.getString("id"))
                 .userId(doc.getString("userId"))
@@ -207,12 +218,10 @@ public class TripRepository {
                 .destination(doc.getString("destination"))
                 .startDate(LocalDate.parse(doc.getString("startDate")))
                 .endDate(LocalDate.parse(doc.getString("endDate")))
-                .currency(doc.getString("currency"))
                 .totalBudget(doc.getLong("totalBudget"))
                 .headcount(headcount)
-                .preferences((List<String>) doc.get("preferences"))
-                .createdAt(doc.getDate("createdAt").toInstant())
-                .updatedAt(doc.getDate("updatedAt").toInstant())
+                .createdAt(createdAt)
+                .updatedAt(updatedAt)
                 .days(days)
                 .build();
     }
@@ -238,16 +247,35 @@ public class TripRepository {
 
     @SuppressWarnings("unchecked")
     private Activity convertMapToActivity(Map<String, Object> map) {
+        // 解析 POI 对象
+        AmapPoi poi = null;
+        Object poiObj = map.get("poi");
+        if (poiObj instanceof Map) {
+            Map<String, Object> poiMap = (Map<String, Object>) poiObj;
+            poi = AmapPoi.builder()
+                    .id((String) poiMap.get("id"))
+                    .name((String) poiMap.get("name"))
+                    .type((String) poiMap.get("type"))
+                    .typecode((String) poiMap.get("typecode"))
+                    .address((String) poiMap.get("address"))
+                    .location((String) poiMap.get("location"))
+                    .pname((String) poiMap.get("pname"))
+                    .cityname((String) poiMap.get("cityname"))
+                    .adname((String) poiMap.get("adname"))
+                    .pcode((String) poiMap.get("pcode"))
+                    .citycode((String) poiMap.get("citycode"))
+                    .adcode((String) poiMap.get("adcode"))
+                    .tel((String) poiMap.get("tel"))
+                    .build();
+        }
+        
         return Activity.builder()
                 .id((String) map.get("id"))
                 .dayIndex(((Long) map.get("dayIndex")).intValue())
                 .type((String) map.get("type"))
                 .title((String) map.get("title"))
                 .locationName((String) map.get("locationName"))
-                .address((String) map.get("address"))
-                .lat((Double) map.get("lat"))
-                .lng((Double) map.get("lng"))
-                .poiId((String) map.get("poiId"))
+                .poi(poi)
                 .startTime((String) map.get("startTime"))
                 .endTime((String) map.get("endTime"))
                 .estimatedCost((Long) map.get("estimatedCost"))

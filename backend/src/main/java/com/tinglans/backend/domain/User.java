@@ -43,11 +43,6 @@ public class User {
     private List<String> preferences;
     
     /**
-     * 默认货币
-     */
-    private String defaultCurrency;
-    
-    /**
      * 创建时间
      */
     private Instant createdAt;

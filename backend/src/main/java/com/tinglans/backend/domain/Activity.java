@@ -46,24 +46,9 @@ public class Activity {
     private String locationName;
     
     /**
-     * 详细地址
+     * POI 对象
      */
-    private String address;
-    
-    /**
-     * 纬度
-     */
-    private Double lat;
-    
-    /**
-     * 经度
-     */
-    private Double lng;
-    
-    /**
-     * 高德地图POI ID
-     */
-    private String poiId;
+    private com.tinglans.backend.thirdparty.amap.dto.AmapPoi poi;
     
     /**
      * 开始时间（HH:mm 格式）
