@@ -4,15 +4,19 @@ import com.tinglans.backend.common.BusinessException;
 import com.tinglans.backend.common.ResponseCode;
 import com.tinglans.backend.domain.User;
 import com.tinglans.backend.repository.UserRepository;
+import com.tinglans.backend.util.JwtUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
@@ -26,6 +30,9 @@ import java.util.stream.Collectors;
 public class UserService {
 
     private final UserRepository userRepository;
+    private final JwtUtil jwtUtil;
+    private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
+    
     private static final String PREFERENCE_DELIMITER = ";";
 
     // ==================== 校验方法 ====================
@@ -131,5 +138,92 @@ public class UserService {
                 .filter(s -> !s.isEmpty())
                 .distinct()
                 .collect(Collectors.toList());
+    }
+
+    // ==================== 认证方法 ====================
+
+    /**
+     * 用户注册
+     *
+     * @param username 用户名
+     * @param password 密码
+     * @return 新创建的用户ID
+     */
+    public String register(String username, String password) throws ExecutionException, InterruptedException {
+        log.info("用户注册: username={}", username);
+
+        // 参数校验
+        if (!StringUtils.hasText(username) || !StringUtils.hasText(password)) {
+            throw new BusinessException(ResponseCode.INVALID_PARAM, "用户名和密码不能为空");
+        }
+
+        if (username.length() < 3 || username.length() > 20) {
+            throw new BusinessException(ResponseCode.INVALID_PARAM, "用户名长度必须在3-20个字符之间");
+        }
+
+        if (password.length() < 6) {
+            throw new BusinessException(ResponseCode.INVALID_PARAM, "密码长度至少6个字符");
+        }
+
+        // 检查用户名是否已存在
+        if (userRepository.existsByUsername(username)) {
+            throw new BusinessException(ResponseCode.USER_ALREADY_EXISTS);
+        }
+
+        // 创建新用户
+        String userId = "user-" + UUID.randomUUID().toString();
+        String passwordHash = passwordEncoder.encode(password);
+
+        User newUser = User.builder()
+                .id(userId)
+                .username(username)
+                .passwordHash(passwordHash)
+                .preferences(new ArrayList<>())
+                .defaultCurrency("CNY")
+                .createdAt(Instant.now())
+                .build();
+
+        userRepository.save(newUser);
+
+        log.info("用户注册成功: userId={}, username={}", userId, username);
+        return userId;
+    }
+
+    /**
+     * 用户登录
+     *
+     * @param username 用户名
+     * @param password 密码
+     * @return JWT Token
+     */
+    public String login(String username, String password) throws ExecutionException, InterruptedException {
+        log.info("用户登录: username={}", username);
+
+        // 参数校验
+        if (!StringUtils.hasText(username) || !StringUtils.hasText(password)) {
+            throw new BusinessException(ResponseCode.INVALID_PARAM, "用户名和密码不能为空");
+        }
+
+        // 查找用户
+        Optional<User> userOpt = userRepository.findByUsername(username);
+        if (userOpt.isEmpty()) {
+            throw new BusinessException(ResponseCode.INVALID_CREDENTIALS);
+        }
+
+        User user = userOpt.get();
+
+        // 验证密码
+        if (!passwordEncoder.matches(password, user.getPasswordHash())) {
+            throw new BusinessException(ResponseCode.INVALID_CREDENTIALS);
+        }
+
+        // 更新最后登录时间
+        userRepository.updateLastLoginAt(user.getId());
+
+        // 生成Token
+        String token = jwtUtil.generateToken(user.getId());
+
+        log.info("用户登录成功: userId={}, username={}", user.getId(), username);
+        return token;
     }
 }

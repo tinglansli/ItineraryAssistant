@@ -2,6 +2,7 @@ package com.tinglans.backend.controller;
 
 import com.tinglans.backend.common.ApiResponse;
 import com.tinglans.backend.service.SpeechService;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
@@ -25,7 +26,8 @@ public class SpeechController {
      */
     @PostMapping(value = "/transcribe", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ApiResponse<String>> transcribeAudio(
-            @RequestPart("audio") MultipartFile audioFile) throws Exception {
+            @RequestPart("audio") MultipartFile audioFile,
+            HttpServletRequest httpRequest) throws Exception {
         String transcript = speechService.transcribeVoice(audioFile);
         return ResponseEntity.ok(ApiResponse.success("语音识别成功", transcript));
     }

@@ -3,12 +3,14 @@ package com.tinglans.backend.service;
 import com.tinglans.backend.common.BusinessException;
 import com.tinglans.backend.domain.User;
 import com.tinglans.backend.repository.UserRepository;
+import com.tinglans.backend.util.JwtUtil;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 
 import java.time.Instant;
 import java.util.*;
@@ -26,6 +28,9 @@ class UserServiceTest {
 
     @Mock
     private UserRepository userRepository;
+
+    @Mock
+    private JwtUtil jwtUtil;
 
     @InjectMocks
     private UserService userService;
@@ -45,6 +50,144 @@ class UserServiceTest {
                 .defaultCurrency("CNY")
                 .createdAt(Instant.now())
                 .build();
+    }
+
+    // ==================== 注册测试 ====================
+
+    @Test
+    void testRegister_success() throws ExecutionException, InterruptedException {
+        // Given
+        String username = "newuser";
+        String password = "password123";
+
+        when(userRepository.existsByUsername(username)).thenReturn(false);
+        doNothing().when(userRepository).save(any(User.class));
+
+        // When
+        String userId = userService.register(username, password);
+
+        // Then
+        assertNotNull(userId);
+        assertTrue(userId.startsWith("user-"));
+        
+        verify(userRepository, times(1)).existsByUsername(username);
+        verify(userRepository, times(1)).save(any(User.class));
+    }
+
+    @Test
+    void testRegister_userAlreadyExists() throws ExecutionException, InterruptedException {
+        // Given
+        String username = "existinguser";
+        String password = "password123";
+
+        when(userRepository.existsByUsername(username)).thenReturn(true);
+
+        // When & Then
+        BusinessException exception = assertThrows(BusinessException.class, () -> {
+            userService.register(username, password);
+        });
+        assertTrue(exception.getMessage().contains("用户名已存在"));
+
+        verify(userRepository, times(1)).existsByUsername(username);
+        verify(userRepository, never()).save(any(User.class));
+    }
+
+    @Test
+    void testRegister_invalidUsername() throws ExecutionException, InterruptedException {
+        // Given - username too short
+        String username = "ab";
+        String password = "password123";
+
+        // When & Then
+        BusinessException exception = assertThrows(BusinessException.class, () -> {
+            userService.register(username, password);
+        });
+        assertTrue(exception.getMessage().contains("3-20"));
+    }
+
+    @Test
+    void testRegister_invalidPassword() throws ExecutionException, InterruptedException {
+        // Given - password too short
+        String username = "validuser";
+        String password = "12345";
+
+        // When & Then
+        BusinessException exception = assertThrows(BusinessException.class, () -> {
+            userService.register(username, password);
+        });
+        assertTrue(exception.getMessage().contains("至少6个字符"));
+    }
+
+    // ==================== 登录测试 ====================
+
+    @Test
+    void testLogin_success() throws ExecutionException, InterruptedException {
+        // Given
+        String username = "testuser";
+        String password = "password123";
+        String token = "test-jwt-token";
+
+        User user = User.builder()
+                .id(testUserId)
+                .username(username)
+                .passwordHash(new BCryptPasswordEncoder().encode(password))
+                .build();
+
+        when(userRepository.findByUsername(username)).thenReturn(Optional.of(user));
+        doNothing().when(userRepository).updateLastLoginAt(testUserId);
+        when(jwtUtil.generateToken(testUserId)).thenReturn(token);
+
+        // When
+        String result = userService.login(username, password);
+
+        // Then
+        assertEquals(token, result);
+        verify(userRepository, times(1)).findByUsername(username);
+        verify(userRepository, times(1)).updateLastLoginAt(testUserId);
+        verify(jwtUtil, times(1)).generateToken(testUserId);
+    }
+
+    @Test
+    void testLogin_userNotFound() throws ExecutionException, InterruptedException {
+        // Given
+        String username = "nonexistent";
+        String password = "password123";
+
+        when(userRepository.findByUsername(username)).thenReturn(Optional.empty());
+
+        // When & Then
+        BusinessException exception = assertThrows(BusinessException.class, () -> {
+            userService.login(username, password);
+        });
+        assertTrue(exception.getMessage().contains("错误"));
+
+        verify(userRepository, times(1)).findByUsername(username);
+        verify(jwtUtil, never()).generateToken(anyString());
+    }
+
+    @Test
+    void testLogin_invalidPassword() throws ExecutionException, InterruptedException {
+        // Given
+        String username = "testuser";
+        String correctPassword = "password123";
+        String wrongPassword = "wrongpassword";
+
+        User user = User.builder()
+                .id(testUserId)
+                .username(username)
+                .passwordHash(new BCryptPasswordEncoder().encode(correctPassword))
+                .build();
+
+        when(userRepository.findByUsername(username)).thenReturn(Optional.of(user));
+
+        // When & Then
+        BusinessException exception = assertThrows(BusinessException.class, () -> {
+            userService.login(username, wrongPassword);
+        });
+        assertTrue(exception.getMessage().contains("错误"));
+
+        verify(userRepository, times(1)).findByUsername(username);
+        verify(jwtUtil, never()).generateToken(anyString());
     }
 
     @Test

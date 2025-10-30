@@ -3,6 +3,8 @@ package com.tinglans.backend.controller;
 import com.tinglans.backend.common.ApiResponse;
 import com.tinglans.backend.domain.Trip;
 import com.tinglans.backend.service.TripService;
+import com.tinglans.backend.util.AuthUtil;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -26,9 +28,11 @@ public class TripController {
      * 从文本创建行程预览
      */
     @PostMapping
-    public ResponseEntity<ApiResponse<Trip>> createTripFromText(@RequestBody CreateTripRequest request) 
-            throws Exception {
-        Trip trip = tripService.createTripFromText(request.getUserInput(), request.getUserId());
+    public ResponseEntity<ApiResponse<Trip>> createTripFromText(
+            @RequestBody CreateTripRequest request,
+            HttpServletRequest httpRequest) throws Exception {
+        String userId = AuthUtil.getCurrentUserId(httpRequest);
+        Trip trip = tripService.createTripFromText(request.getUserInput(), userId);
         return ResponseEntity.ok(ApiResponse.success("行程生成成功", trip));
     }
 
@@ -47,8 +51,9 @@ public class TripController {
     @PostMapping("/{tripId}/confirm")
     public ResponseEntity<ApiResponse<Trip>> confirmTrip(
             @PathVariable String tripId,
-            @RequestBody ConfirmTripRequest request) throws Exception {
-        Trip trip = tripService.confirmTrip(tripId, request.getUserId());
+            HttpServletRequest httpRequest) throws Exception {
+        String userId = AuthUtil.getCurrentUserId(httpRequest);
+        Trip trip = tripService.confirmTrip(tripId, userId);
         return ResponseEntity.ok(ApiResponse.success("行程确认成功", trip));
     }
 
@@ -56,7 +61,8 @@ public class TripController {
      * 获取行程列表
      */
     @GetMapping
-    public ResponseEntity<ApiResponse<List<Trip>>> getConfirmedTrips(@RequestParam String userId) throws Exception {
+    public ResponseEntity<ApiResponse<List<Trip>>> getConfirmedTrips(HttpServletRequest httpRequest) throws Exception {
+        String userId = AuthUtil.getCurrentUserId(httpRequest);
         tripService.validateUserId(userId);
         List<Trip> trips = tripService.getConfirmedTripsByUserId(userId);
         return ResponseEntity.ok(ApiResponse.success(trips));
@@ -65,11 +71,5 @@ public class TripController {
     @Data
     public static class CreateTripRequest {
         private String userInput;
-        private String userId;
-    }
-
-    @Data
-    public static class ConfirmTripRequest {
-        private String userId;
     }
 }

@@ -3,6 +3,8 @@ package com.tinglans.backend.controller;
 import com.tinglans.backend.common.ApiResponse;
 import com.tinglans.backend.domain.User;
 import com.tinglans.backend.service.UserService;
+import com.tinglans.backend.util.AuthUtil;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -22,6 +24,29 @@ public class UserController {
     private final UserService userService;
 
     /**
+     * 用户注册
+     */
+    @PostMapping("/register")
+    public ResponseEntity<ApiResponse<RegisterResponse>> register(@RequestBody RegisterRequest request) throws Exception {
+        String userId = userService.register(request.getUsername(), request.getPassword());
+        RegisterResponse response = new RegisterResponse();
+        response.setUserId(userId);
+        response.setUsername(request.getUsername());
+        return ResponseEntity.ok(ApiResponse.success("注册成功", response));
+    }
+
+    /**
+     * 用户登录
+     */
+    @PostMapping("/login")
+    public ResponseEntity<ApiResponse<LoginResponse>> login(@RequestBody LoginRequest request) throws Exception {
+        String token = userService.login(request.getUsername(), request.getPassword());
+        LoginResponse response = new LoginResponse();
+        response.setToken(token);
+        return ResponseEntity.ok(ApiResponse.success("登录成功", response));
+    }
+
+    /**
      * 获取用户信息
      */
     @GetMapping("/{userId}")
@@ -31,23 +56,48 @@ public class UserController {
     }
 
     /**
-     * 获取用户偏好
+     * 获取当前用户偏好
      */
-    @GetMapping("/{userId}/preferences")
-    public ResponseEntity<ApiResponse<String>> getPreferences(@PathVariable String userId) throws Exception {
+    @GetMapping("/preferences")
+    public ResponseEntity<ApiResponse<String>> getPreferences(HttpServletRequest httpRequest) throws Exception {
+        String userId = AuthUtil.getCurrentUserId(httpRequest);
         String preferences = userService.getPreferences(userId);
         return ResponseEntity.ok(ApiResponse.success(preferences));
     }
 
     /**
-     * 更新用户偏好
+     * 更新当前用户偏好
      */
-    @PutMapping("/{userId}/preferences")
+    @PutMapping("/preferences")
     public ResponseEntity<ApiResponse<Void>> updatePreferences(
-            @PathVariable String userId,
-            @RequestBody UpdatePreferencesRequest request) throws Exception {
+            @RequestBody UpdatePreferencesRequest request,
+            HttpServletRequest httpRequest) throws Exception {
+        String userId = AuthUtil.getCurrentUserId(httpRequest);
         userService.updatePreferences(userId, request.getPreferences());
         return ResponseEntity.ok(ApiResponse.success("偏好更新成功", null));
+    }
+
+    @Data
+    public static class RegisterRequest {
+        private String username;
+        private String password;
+    }
+
+    @Data
+    public static class RegisterResponse {
+        private String userId;
+        private String username;
+    }
+
+    @Data
+    public static class LoginRequest {
+        private String username;
+        private String password;
+    }
+
+    @Data
+    public static class LoginResponse {
+        private String token;
     }
 
     @Data
