@@ -47,7 +47,6 @@ class UserServiceTest {
                 .username("testuser")
                 .email("test@example.com")
                 .preferences(Arrays.asList("美食", "历史文化", "寺庙"))
-                .defaultCurrency("CNY")
                 .createdAt(Instant.now())
                 .build();
     }

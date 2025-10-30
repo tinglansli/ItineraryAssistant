@@ -8,7 +8,10 @@ import com.tinglans.backend.common.ResponseCode;
 import com.tinglans.backend.domain.Activity;
 import com.tinglans.backend.domain.Day;
 import com.tinglans.backend.domain.Trip;
+import com.tinglans.backend.dto.TripSummary;
 import com.tinglans.backend.repository.TripRepository;
+import com.tinglans.backend.thirdparty.amap.AmapClient;
+import com.tinglans.backend.thirdparty.amap.dto.AmapPoi;
 import com.tinglans.backend.thirdparty.llm.QwenClient;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -35,6 +38,7 @@ public class TripService {
     private final TripRepository tripRepository;
     private final UserService userService;
     private final QwenClient qwenClient;
+    private final AmapClient amapClient;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     // ==================== 校验方法 ====================
@@ -160,10 +164,13 @@ public class TripService {
         // 2. 权限校验
         validateTripPermission(trip, userId);
 
-        // 3. 持久化到 Firestore
+        // 3. 设置 updatedAt 时间戳
+        trip.setUpdatedAt(Instant.now());
+
+        // 4. 持久化到 Firestore
         tripRepository.saveToFirestore(trip);
 
-        // 4. 更新 Redis 缓存（延长 TTL 为 6 小时）
+        // 5. 更新 Redis 缓存
         tripRepository.saveToCache(trip);
 
         log.info("行程确认成功: tripId={}", tripId);
@@ -194,9 +201,13 @@ public class TripService {
             ===== 必须输出的完整 JSON 格式 =====
             {
               "tripName": "行程名称",
-              "destination": "目的地",
+              "destination": "目的地（城市名，如厦门/东京）",
               "startDate": "开始日期(yyyy-MM-dd格式)",
               "endDate": "结束日期(yyyy-MM-dd格式)",
+              "headcount": {
+                "adults": 成人数量（整数）,
+                "children": 儿童数量（整数）
+              },
               "days": [
                 {
                   "dayIndex": 1,
@@ -204,7 +215,7 @@ public class TripService {
                     {
                       "type": "transport/hotel/sight/food/other",
                       "title": "活动描述（如：参观伏见稻荷大社）",
-                      "locationName": "地点名称（用于地图搜索，如伏见稻荷大社）",
+                      "locationName": "地点名称（如：伏见稻荷大社）",
                       "startTime": "HH:mm",
                       "endTime": "HH:mm",
                       "estimatedCost": 预估费用（单位：分，100分=1元）
@@ -222,31 +233,28 @@ public class TripService {
             - tripName: 行程名称，建议反映主题和目的地
             - destination: 目的地名称
             - startDate/endDate: 必须是 yyyy-MM-dd 格式的有效日期
+            - headcount: 同行人数信息，adults和children都必须是整数（不能为null），从用户输入中推断（无明确信息时默认adults=1, children=0）
             - days: 数组, 长度必须等于用户指定的旅游天数
             - dayIndex: 从 1 开始的连续整数，不能跳过或重复
             - type: 只能使用这 5 个值: transport、hotel、sight、food、other
-            - locationName: 用于地图搜索的准确地点名称（如景点名、餐厅名、酒店名等）
+            - locationName: 能够在地图上找到的真实地点名称（真实餐厅名称、酒店名称、景点名称等）
             - startTime/endTime: 24小时制, 格式为 HH:mm (如 09:00、14:30)
-            - estimatedCost: 整数, 单位是分(1元=100分), 绝不能为浮点数、字符串或其他类型
+            - estimatedCost: 整数, 单位是分(1元=100分)
             
             ===== 生成行程的逻辑规则 =====
             1. 每天安排 3-5 个活动，确保时间分配合理且地理位置相近
             2. 第一天应该包含交通（从出发地到目的地）和酒店入住
             3. 最后一天应该包含交通返回（从目的地回到出发地）
             4. 根据用户提供的人数和预算信息合理分配每个活动的费用
-            5. 考虑目的地的季节特点和天气条件
+            5. 根据目的地的季节特点和天气条件推荐活动
+            6. 考虑用户的旅行偏好（已在用户消息中提供），融入到行程推荐中
 
             ===== 生成行程的格式规则 =====
-            1. 必须生成指定天数的完整行程。如果用户说"7天", days 数组必须包含 1-7 天的所有数据，不能省略、截断或使用 "..." 等符号表示省略
-            2. 不允许在 JSON 中添加任何注释、说明文字或非结构化的内容
-            3. 所有数值字段(dayIndex、estimatedCost)必须是数字类型，不能是字符串
-            4. 活动时间应该在合理的生活范围内（通常 06:00-23:00)
-            5. 返回的必须是有效的、可被标准 JSON 解析器解析的完整 JSON 对象，从 { 开始到 } 结束
-            6. 不要生成 "dayIndex": 1, "activities": [...省略...] 这样的内容
-            7. 不要添加 // 这是第2天 这样的注释
-            8. 不要省略任何天数(如说有7天却只生成3天的数据)
-            9. 不要生成 "days": [... 其他天数省略 ...] 这样的形式
-            10. 不要混入任何非 JSON 的文本说明
+            1. 必须生成指定天数的完整行程。如果用户说"7天", days 数组必须包含 1-7 天的所有数据
+            2. 所有数值字段(dayIndex、estimatedCost、adults、children)必须是数字类型，不能是字符串
+            3. 返回的必须是可被标准 JSON 解析器解析的完整 JSON 对象，从 { 开始到 } 结束
+            4. headcount字段必须存在，不能为null或空
+            5. 不要添加注释
 
             **重要：生成完成后，检查输出是否符合格式规则。如果不符合则重新生成。**
             """;
@@ -292,15 +300,30 @@ public class TripService {
                 endDate = LocalDate.parse(root.get("endDate").asText());
             }
 
+            // 解析同行人数
+            Trip.Headcount headcount = null;
+            if (root.has("headcount") && root.get("headcount").isObject()) {
+                JsonNode headcountNode = root.get("headcount");
+                int adults = headcountNode.has("adults") ? headcountNode.get("adults").asInt() : 1;
+                int children = headcountNode.has("children") ? headcountNode.get("children").asInt() : 0;
+                headcount = Trip.Headcount.builder()
+                        .adults(adults)
+                        .children(children)
+                        .build();
+            }
+
             // 解析天数列表
             List<Day> days = new ArrayList<>();
             if (root.has("days") && root.get("days").isArray()) {
                 JsonNode daysArray = root.get("days");
                 for (JsonNode dayNode : daysArray) {
-                    Day day = parseDay(dayNode, startDate);
+                    Day day = parseDay(dayNode, startDate, destination);
                     days.add(day);
                 }
             }
+            
+            // 计算总预算（所有 Activity 的 estimatedCost 之和）
+            Long totalBudget = calculateTotalBudget(days);
             
             // 构建 Trip 对象
             Trip trip = Trip.builder()
@@ -309,12 +332,17 @@ public class TripService {
                     .destination(destination)
                     .startDate(startDate)
                     .endDate(endDate)
+                    .totalBudget(totalBudget)
+                    .headcount(headcount)
                     .days(days)
                     .createdAt(Instant.now())
                     .build();
             
-            log.debug("行程 JSON 解析成功: tripName={}, days={}, startDate={}, endDate={}", 
-                    tripName, days.size(), startDate, endDate);
+            log.debug("行程 JSON 解析成功: tripName={}, days={}, startDate={}, endDate={}, adults={}, children={}, totalBudget={}", 
+                    tripName, days.size(), startDate, endDate, 
+                    headcount != null ? headcount.getAdults() : 0, 
+                    headcount != null ? headcount.getChildren() : 0,
+                    totalBudget);
             return trip;
             
         } catch (JsonParseException e) {
@@ -327,12 +355,41 @@ public class TripService {
     }
     
     /**
+     * 计算行程总预算
+     * 
+     * @param days 行程天数列表
+     * @return 总预算（分）
+     */
+    private Long calculateTotalBudget(List<Day> days) {
+        long totalBudget = 0;
+        
+        if (days == null) {
+            return totalBudget;
+        }
+        
+        for (Day day : days) {
+            if (day.getActivities() == null) {
+                continue;
+            }
+            
+            for (Activity activity : day.getActivities()) {
+                if (activity.getEstimatedCost() != null) {
+                    totalBudget += activity.getEstimatedCost();
+                }
+            }
+        }
+        
+        log.debug("行程总预算计算完成: totalBudget={}", totalBudget);
+        return totalBudget;
+    }
+    
+    /**
      * 解析单个 Day 对象
      * 
      * @param dayNode JSON 节点
      * @param startDate 行程开始日期（用于计算当天日期）
      */
-    private Day parseDay(JsonNode dayNode, LocalDate startDate) throws Exception {
+    private Day parseDay(JsonNode dayNode, LocalDate startDate, String destination) throws Exception {
         int dayIndex = dayNode.has("dayIndex") ? dayNode.get("dayIndex").asInt() : 1;
         
         // 根据开始日期和 dayIndex 计算当天日期
@@ -345,7 +402,7 @@ public class TripService {
         if (dayNode.has("activities") && dayNode.get("activities").isArray()) {
             JsonNode activitiesArray = dayNode.get("activities");
             for (JsonNode activityNode : activitiesArray) {
-                Activity activity = parseActivity(activityNode, dayIndex);
+                Activity activity = parseActivity(activityNode, dayIndex, destination);
                 activities.add(activity);
             }
         }
@@ -359,8 +416,9 @@ public class TripService {
     
     /**
      * 解析单个 Activity 对象
+     * 根据 locationName 调用高德地图 API 获取地理位置信息
      */
-    private Activity parseActivity(JsonNode activityNode, int dayIndex) throws Exception {
+    private Activity parseActivity(JsonNode activityNode, int dayIndex, String destination) throws Exception {
         String id = UUID.randomUUID().toString();
         String type = activityNode.has("type") ? activityNode.get("type").asText() : "other";
         String title = activityNode.has("title") ? activityNode.get("title").asText() : "";
@@ -369,15 +427,84 @@ public class TripService {
         String endTime = activityNode.has("endTime") ? activityNode.get("endTime").asText() : "";
         Long estimatedCost = activityNode.has("estimatedCost") ? activityNode.get("estimatedCost").asLong() : 0L;
         
-        return Activity.builder()
+        // 根据 locationName 调用高德地图 API 获取完整 POI 信息
+        AmapPoi poi = null;
+        if (StringUtils.hasText(locationName)) {
+            // 使用 Trip 的 destination 作为 region 限定搜索范围
+            poi = amapClient.searchLocation(locationName, destination);
+            if (poi != null) {
+                log.debug("Activity POI 信息已获取: locationName={}, poiName={}, address={}, location={}", 
+                        locationName, poi.getName(), poi.getAddress(), poi.getLocation());
+            } else {
+                log.warn("未能从高德地图获取位置信息: locationName={}, region={}", locationName, destination);
+            }
+        }
+        
+        Activity activity = Activity.builder()
                 .id(id)
                 .dayIndex(dayIndex)
                 .type(type)
                 .title(title)
                 .locationName(locationName)
+                .poi(poi)
                 .startTime(startTime)
                 .endTime(endTime)
                 .estimatedCost(estimatedCost)
                 .build();
+        
+        log.debug("Activity 解析完成: title={}, locationName={}, type={}", title, locationName, type);
+        return activity;
+    }
+
+    // ==================== 转换方法 ====================
+
+    /**
+     * 将Trip转换为TripSummary（不包含Days详细信息）
+     *
+     * @param trip 完整的Trip对象
+     * @return TripSummary概要对象
+     */
+    public TripSummary convertToSummary(Trip trip) {
+        if (trip == null) {
+            return null;
+        }
+
+        TripSummary.Headcount headcount = null;
+        if (trip.getHeadcount() != null) {
+            headcount = TripSummary.Headcount.builder()
+                    .adults(trip.getHeadcount().getAdults())
+                    .children(trip.getHeadcount().getChildren())
+                    .build();
+        }
+
+        return TripSummary.builder()
+                .id(trip.getId())
+                .userId(trip.getUserId())
+                .title(trip.getTitle())
+                .destination(trip.getDestination())
+                .startDate(trip.getStartDate())
+                .endDate(trip.getEndDate())
+                .totalBudget(trip.getTotalBudget())
+                .headcount(headcount)
+                .createdAt(trip.getCreatedAt())
+                .updatedAt(trip.getUpdatedAt())
+                .build();
+    }
+
+    /**
+     * 将Trip列表转换为TripSummary列表
+     *
+     * @param trips Trip列表
+     * @return TripSummary列表
+     */
+    public List<TripSummary> convertToSummaryList(List<Trip> trips) {
+        if (trips == null) {
+            return new ArrayList<>();
+        }
+
+        return trips.stream()
+                .map(this::convertToSummary)
+                .toList();
     }
 }
+

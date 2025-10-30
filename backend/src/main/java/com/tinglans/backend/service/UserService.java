@@ -133,7 +133,9 @@ public class UserService {
             return new ArrayList<>();
         }
 
-        return Arrays.stream(preferencesStr.split(PREFERENCE_DELIMITER))
+        // 支持英文分号 ";" 和中文分号 "；" 两种分隔符
+        // 使用正则表达式进行分割
+        return Arrays.stream(preferencesStr.split("[;；]"))
                 .map(String::trim)
                 .filter(s -> !s.isEmpty())
                 .distinct()
@@ -179,7 +181,6 @@ public class UserService {
                 .username(username)
                 .passwordHash(passwordHash)
                 .preferences(new ArrayList<>())
-                .defaultCurrency("CNY")
                 .createdAt(Instant.now())
                 .build();
 
