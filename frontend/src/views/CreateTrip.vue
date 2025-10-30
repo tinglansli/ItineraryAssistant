@@ -316,7 +316,8 @@ export default {
               params: { tripId: tripId },
               state: { 
                 tripData: response.data,
-                userInput: userInput.value  // 保存用户输入，便于重新生成
+                userInput: userInput.value,  // 保存用户输入，便于重新生成
+                fromPage: 'create'  // 标记来源页面
               }
             })
           }, 800)

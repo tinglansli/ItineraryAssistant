@@ -3,6 +3,7 @@ import Home from '../views/Home.vue'
 import Auth from '../views/Auth.vue'
 import CreateTrip from '../views/CreateTrip.vue'
 import TripDetail from '../views/TripDetail.vue'
+import TripList from '../views/TripList.vue'
 
 const routes = [
   {
@@ -24,6 +25,12 @@ const routes = [
     path: '/create-trip',
     name: 'CreateTrip',
     component: CreateTrip,
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/trips',
+    name: 'TripList',
+    component: TripList,
     meta: { requiresAuth: true }
   },
   {

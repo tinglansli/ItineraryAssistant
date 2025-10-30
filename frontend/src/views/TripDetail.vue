@@ -108,8 +108,8 @@
       </div>
     </div>
 
-    <!-- 页面底部中央悬浮操作按钮 -->
-    <div v-if="!tripData?.confirmed" class="floating-actions">
+    <!-- 页面底部中央悬浮操作按钮（仅未确认的新行程显示） -->
+    <div v-if="isNewTrip" class="floating-actions">
       <button @click="regenerateTrip" class="action-btn regenerate-btn">
         <span class="btn-icon">↻</span>
         <span class="btn-text">重新生成</span>
@@ -119,6 +119,22 @@
         <span class="btn-text">确认行程</span>
       </button>
     </div>
+
+    <!-- 重新生成进度弹窗 -->
+    <transition name="modal-fade">
+      <div v-if="isRegenerating" class="modal-overlay">
+        <div class="progress-modal">
+          <div class="progress-icon-wrapper">
+            <div class="progress-icon">🌍</div>
+          </div>
+          <h2 class="progress-title">{{ regenerateMessage }}</h2>
+          <div class="progress-bar">
+            <div class="progress-fill" :style="{ width: regenerateProgress + '%' }"></div>
+          </div>
+          <p class="progress-hint">AI 正在为您精心规划行程，请稍候...</p>
+        </div>
+      </div>
+    </transition>
   </div>
 </template>
 
@@ -142,6 +158,11 @@ export default {
     const tripData = ref(null)
     const selectedDay = ref('all')
     const userInput = ref('') // 保存用户原始输入
+    const fromPage = ref('') // 记录来源页面
+    const isNewTrip = ref(false) // 是否为新生成的行程（未确认）
+    const isRegenerating = ref(false) // 重新生成状态
+    const regenerateProgress = ref(0) // 重新生成进度
+    const regenerateMessage = ref('正在重新生成行程') // 重新生成提示信息
     let mapInstance = null
     const activityMarkers = new Map() // 存储活动ID到标记和信息窗口的映射
 
@@ -152,9 +173,20 @@ export default {
       }
     }
 
-    // 返回首页
+    // 智能返回（根据来源页面）
     const goBack = () => {
-      router.push('/home')
+      if (fromPage.value === 'list') {
+        router.push('/trips')
+      } else if (fromPage.value === 'create') {
+        router.push({
+          name: 'CreateTrip',
+          state: {
+            userInput: userInput.value
+          }
+        })
+      } else {
+        router.push('/home')
+      }
     }
 
     // 获取日期颜色
@@ -254,8 +286,9 @@ export default {
           showToast('行程已保存', 'success')
           // 更新本地数据状态，按钮将消失
           if (tripData.value) {
-            tripData.value.confirmed = true
+            tripData.value.updatedAt = new Date().toISOString()
           }
+          isNewTrip.value = false
         } else {
           showToast(response.message || '确认失败', 'error')
           console.error('确认失败，响应:', response)
@@ -268,14 +301,81 @@ export default {
     }
 
     // 重新生成行程
-    const regenerateTrip = () => {
-      // 返回创建行程页面，并保留用户输入
-      router.push({
-        name: 'CreateTrip',
-        state: {
-          userInput: userInput.value
-        }
+    const regenerateTrip = async () => {
+      console.log('点击重新生成，当前状态:', {
+        isRegenerating: isRegenerating.value,
+        userInput: userInput.value
       })
+
+      // 防止重复点击
+      if (isRegenerating.value) {
+        console.log('正在生成中，忽略重复点击')
+        return
+      }
+
+      if (!userInput.value) {
+        console.error('缺少用户输入:', userInput.value)
+        showToast('缺少用户输入，无法重新生成', 'error')
+        return
+      }
+
+      console.log('开始重新生成行程...')
+
+      isRegenerating.value = true
+      regenerateProgress.value = 0
+      regenerateMessage.value = '正在分析您的需求'
+
+      // 模拟进度条
+      let currentProgress = 0
+      const progressInterval = setInterval(() => {
+        if (currentProgress < 85) {
+          currentProgress += Math.random() * 3
+          regenerateProgress.value = Math.min(currentProgress, 85)
+          
+          if (regenerateProgress.value > 20 && regenerateProgress.value < 50) {
+            regenerateMessage.value = '正在规划最佳路线'
+          } else if (regenerateProgress.value >= 50) {
+            regenerateMessage.value = '正在优化行程细节'
+          }
+        }
+      }, 1000)
+
+      try {
+        const response = await apiClient.post('/trips', {
+          userInput: userInput.value
+        })
+
+        if (response.success) {
+          // 完成进度
+          regenerateProgress.value = 100
+          regenerateMessage.value = '行程生成完成！'
+          
+          clearInterval(progressInterval)
+          
+          // 延迟跳转到新行程详情页
+          setTimeout(() => {
+            isRegenerating.value = false
+            
+            const newTripId = response.data.tripId || response.data.id
+            router.push({
+              name: 'TripDetail',
+              params: { tripId: newTripId },
+              state: { 
+                tripData: response.data,
+                userInput: userInput.value,
+                fromPage: 'create'
+              }
+            })
+          }, 800)
+        } else {
+          throw new Error(response.message || '生成失败')
+        }
+      } catch (error) {
+        console.error('重新生成行程失败:', error)
+        clearInterval(progressInterval)
+        isRegenerating.value = false
+        showToast(error.response?.data?.message || '生成失败，请稍后重试', 'error')
+      }
     }
 
     // 加载高德地图脚本
@@ -432,7 +532,10 @@ export default {
     })
 
     // 加载行程数据
-    onMounted(() => {
+    onMounted(async () => {
+      // 从路由状态获取来源页面
+      fromPage.value = history.state?.fromPage || ''
+
       // 从路由状态或参数获取行程数据
       const stateData = history.state?.tripData
       const paramData = route.params?.tripData
@@ -441,15 +544,42 @@ export default {
         tripData.value = stateData
         // 保存用户输入（如果有）
         userInput.value = history.state?.userInput || ''
+        // 判断是否为新行程（没有 updatedAt）
+        isNewTrip.value = !stateData.updatedAt
+        // 初始化地图
+        setTimeout(initMap, 300)
       } else if (paramData) {
         tripData.value = paramData
+        // 判断是否为新行程
+        isNewTrip.value = !paramData.updatedAt
+        // 初始化地图
+        setTimeout(initMap, 300)
       } else {
-        // 实际应用中，应该根据 tripId 调用 API 获取数据
-        showToast('无法加载行程数据', 'error')
+        // 从 API 获取行程数据
+        const tripId = route.params.tripId
+        if (tripId) {
+          try {
+            console.log('从API加载行程数据，tripId:', tripId)
+            const response = await apiClient.get(`/trips/${tripId}/itinerary`)
+            console.log('行程数据响应:', response)
+            
+            if (response.success) {
+              tripData.value = response.data
+              // 从 API 加载的行程，判断是否为新行程
+              isNewTrip.value = !response.data.updatedAt
+              // 初始化地图
+              setTimeout(initMap, 300)
+            } else {
+              showToast(response.message || '无法加载行程数据', 'error')
+            }
+          } catch (error) {
+            console.error('加载行程数据失败:', error)
+            showToast('无法加载行程数据，请稍后重试', 'error')
+          }
+        } else {
+          showToast('缺少行程ID', 'error')
+        }
       }
-
-      // 初始化地图
-      setTimeout(initMap, 300)
     })
 
     onUnmounted(() => {
@@ -471,7 +601,11 @@ export default {
       goToBudget,
       goToExpense,
       confirmTrip,
-      regenerateTrip
+      regenerateTrip,
+      isNewTrip,
+      isRegenerating,
+      regenerateProgress,
+      regenerateMessage
     }
   }
 }
@@ -965,6 +1099,121 @@ export default {
 
   .activity-title {
     font-size: 0.9vw;
+  }
+}
+
+/* 重新生成进度弹窗样式（与 CreateTrip 保持一致） */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  backdrop-filter: blur(5px);
+}
+
+.progress-modal {
+  background: white;
+  border-radius: 1.5vw;
+  padding: 3vw;
+  width: 30vw;
+  text-align: center;
+  box-shadow: 0 1.5vw 4vw rgba(0, 0, 0, 0.3);
+}
+
+.progress-icon-wrapper {
+  margin-bottom: 1.5vw;
+}
+
+.progress-icon {
+  font-size: 5vw;
+  display: inline-block;
+  animation: rotate-slow 3s linear infinite;
+}
+
+@keyframes rotate-slow {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.progress-title {
+  font-size: 1.5vw;
+  color: #333;
+  margin: 0 0 1.5vw 0;
+  font-weight: 800;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 0.6vw;
+  background: #e0e0e0;
+  border-radius: 0.3vw;
+  overflow: hidden;
+  margin-bottom: 1vw;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+  transition: width 0.5s ease;
+  border-radius: 1vw;
+}
+
+.progress-hint {
+  font-size: 1vw;
+  color: #999;
+  margin: 0;
+}
+
+/* Modal 过渡动画 */
+.modal-fade-enter-active,
+.modal-fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+
+.modal-fade-enter-from,
+.modal-fade-leave-to {
+  opacity: 0;
+}
+
+.modal-fade-enter-active .modal-overlay,
+.modal-fade-enter-active .progress-modal {
+  animation: modal-slide-in 0.3s ease;
+}
+
+.modal-fade-leave-active .modal-overlay,
+.modal-fade-leave-active .progress-modal {
+  animation: modal-slide-out 0.3s ease;
+}
+
+@keyframes modal-slide-in {
+  from {
+    transform: scale(0.9) translateY(-2vw);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes modal-slide-out {
+  from {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+  }
+  to {
+    transform: scale(0.9) translateY(-2vw);
+    opacity: 0;
   }
 }
 </style>

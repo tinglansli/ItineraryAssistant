@@ -200,7 +200,7 @@ public class TripService {
             
             ===== 必须输出的完整 JSON 格式 =====
             {
-              "tripName": "行程名称",
+              "tripName": "行程名称（10个字以内）",
               "destination": "目的地（城市名，如厦门/东京）",
               "startDate": "开始日期(yyyy-MM-dd格式)",
               "endDate": "结束日期(yyyy-MM-dd格式)",
@@ -214,7 +214,7 @@ public class TripService {
                   "activities": [
                     {
                       "type": "transport/hotel/sight/food/other",
-                      "title": "活动描述（如：参观伏见稻荷大社）",
+                      "title": "活动描述（10个字以内，如：参观伏见稻荷大社）",
                       "locationName": "地点名称（如：伏见稻荷大社）",
                       "startTime": "HH:mm",
                       "endTime": "HH:mm",

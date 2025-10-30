@@ -29,7 +29,7 @@
           <div class="action-icon">📅</div>
           <h3>查看行程</h3>
           <p>查看您的旅行记录</p>
-          <button class="action-button">查看详情</button>
+          <button class="action-button" @click="goToTripList">查看详情</button>
         </div>
       </div>
     </div>
@@ -58,6 +58,11 @@ export default {
       router.push('/create-trip')
     }
 
+    // 跳转到查看行程列表
+    const goToTripList = () => {
+      router.push('/trips')
+    }
+
     // 获取用户信息
     const fetchUserInfo = async () => {
       try {
@@ -77,7 +82,8 @@ export default {
     return {
       userInfo,
       handleLogout,
-      goToCreateTrip
+      goToCreateTrip,
+      goToTripList
     }
   }
 }
