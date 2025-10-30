@@ -31,7 +31,7 @@ aliyun:
     max-tokens: ${LLM_MAX_TOKENS:2000}
     temperature: ${LLM_TEMPERATURE:0.7}
     top-p: ${LLM_TOP_P:0.8}
-    enable-search: ${LLM_ENABLE_SEARCH:false}
+    enable-search: ${LLM_ENABLE_SEARCH:true}
 
 # 科大讯飞语音识别配置
 xfyun:
@@ -42,6 +42,14 @@ xfyun:
     timeout: ${XFYUN_TIMEOUT:30000}
     poll-interval: ${XFYUN_POLL_INTERVAL:5000}
     max-poll-count: ${XFYUN_MAX_POLL_COUNT:60}
+
+# 高德地图配置
+amap:
+  api-key: ${AMAP_API_KEY:8e1060ffae0732dd667f101191a51044}
+  base-url: ${AMAP_BASE_URL:https://restapi.amap.com}
+  search-path: ${AMAP_SEARCH_PATH:/v5/place/text}
+  timeout: ${AMAP_TIMEOUT:10}
+  page-size: ${AMAP_PAGE_SIZE:1}
 
 # 日志配置
 logging:
