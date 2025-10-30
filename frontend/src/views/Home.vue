@@ -22,7 +22,7 @@
           <div class="action-icon">📝</div>
           <h3>创建行程</h3>
           <p>开启您的旅行冒险</p>
-          <button class="action-button">开始规划</button>
+          <button class="action-button" @click="goToCreateTrip">开始规划</button>
         </div>
 
         <div class="action-card view-trip">
@@ -53,6 +53,11 @@ export default {
       router.push('/auth')
     }
 
+    // 跳转到创建行程页面
+    const goToCreateTrip = () => {
+      router.push('/create-trip')
+    }
+
     // 获取用户信息
     const fetchUserInfo = async () => {
       try {
@@ -71,7 +76,8 @@ export default {
 
     return {
       userInfo,
-      handleLogout
+      handleLogout,
+      goToCreateTrip
     }
   }
 }
