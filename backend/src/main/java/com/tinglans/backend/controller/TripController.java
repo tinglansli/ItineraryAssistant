@@ -2,6 +2,7 @@ package com.tinglans.backend.controller;
 
 import com.tinglans.backend.common.ApiResponse;
 import com.tinglans.backend.domain.Trip;
+import com.tinglans.backend.dto.TripSummary;
 import com.tinglans.backend.service.TripService;
 import com.tinglans.backend.util.AuthUtil;
 import jakarta.servlet.http.HttpServletRequest;
@@ -49,23 +50,25 @@ public class TripController {
      * 确认行程
      */
     @PostMapping("/{tripId}/confirm")
-    public ResponseEntity<ApiResponse<Trip>> confirmTrip(
+    public ResponseEntity<ApiResponse<TripSummary>> confirmTrip(
             @PathVariable String tripId,
             HttpServletRequest httpRequest) throws Exception {
         String userId = AuthUtil.getCurrentUserId(httpRequest);
         Trip trip = tripService.confirmTrip(tripId, userId);
-        return ResponseEntity.ok(ApiResponse.success("行程确认成功", trip));
+        TripSummary summary = tripService.convertToSummary(trip);
+        return ResponseEntity.ok(ApiResponse.success("行程确认成功", summary));
     }
 
     /**
      * 获取行程列表
      */
     @GetMapping
-    public ResponseEntity<ApiResponse<List<Trip>>> getConfirmedTrips(HttpServletRequest httpRequest) throws Exception {
+    public ResponseEntity<ApiResponse<List<TripSummary>>> getConfirmedTrips(HttpServletRequest httpRequest) throws Exception {
         String userId = AuthUtil.getCurrentUserId(httpRequest);
         tripService.validateUserId(userId);
         List<Trip> trips = tripService.getConfirmedTripsByUserId(userId);
-        return ResponseEntity.ok(ApiResponse.success(trips));
+        List<TripSummary> summaries = tripService.convertToSummaryList(trips);
+        return ResponseEntity.ok(ApiResponse.success(summaries));
     }
 
     @Data
