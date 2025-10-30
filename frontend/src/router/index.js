@@ -31,6 +31,18 @@ const routes = [
     name: 'TripDetail',
     component: TripDetail,
     meta: { requiresAuth: true }
+  },
+  {
+    path: '/trip/:tripId/budget',
+    name: 'BudgetAnalysis',
+    component: () => import('../views/BudgetAnalysis.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/trip/:tripId/expense',
+    name: 'ExpenseRecord',
+    component: () => import('../views/ExpenseRecord.vue'),
+    meta: { requiresAuth: true }
   }
 ]
 
