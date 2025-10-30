@@ -17,7 +17,7 @@ spring:
 firebase:
   project-id: ${FIREBASE_PROJECT_ID:itinerary-assistant-d71a9}
   emulator:
-    host: ${FIRESTORE_EMULATOR_HOST:localhost:8080}
+    host: ${FIRESTORE_EMULATOR_HOST:localhost:8081}
 
 # 缓存配置 (统一TTL：30分钟)
 cache:

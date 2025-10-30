@@ -47,10 +47,11 @@ public class UserController {
     }
 
     /**
-     * 获取用户信息
+     * 获取当前用户信息
      */
-    @GetMapping("/{userId}")
-    public ResponseEntity<ApiResponse<User>> getUser(@PathVariable String userId) throws Exception {
+    @GetMapping("/me")
+    public ResponseEntity<ApiResponse<User>> getCurrentUser(HttpServletRequest httpRequest) throws Exception {
+        String userId = AuthUtil.getCurrentUserId(httpRequest);
         User user = userService.validateAndGetUser(userId);
         return ResponseEntity.ok(ApiResponse.success(user));
     }

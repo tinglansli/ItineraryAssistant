@@ -37,15 +37,20 @@
 
 ### 1. 用户注册
 
+
 **请求**
 
+**URL & Header：**
 ```http
-POST /users/register HTTP/1.1
+POST /api/users/register HTTP/1.1
 Content-Type: application/json
+```
 
+**请求体（Body-raw-JSON）：**
+```json
 {
-  "username": "user123",
-  "password": "password123"
+  "username": "tinglans",
+  "password": "123456"
 }
 ```
 
@@ -57,8 +62,8 @@ Content-Type: application/json
   "code": 200,
   "message": "注册成功",
   "data": {
-    "userId": "user-001",
-    "username": "user123"
+    "userId": "user-d5116576-de31-42f2-b2e3-70e005763747",
+    "username": "tinglans"
   }
 }
 ```
@@ -72,12 +77,18 @@ Content-Type: application/json
 
 ### 2. 用户登录
 
+
 **请求**
 
-```http
-POST /users/login HTTP/1.1
-Content-Type: application/json
+**URL & Header：**
 
+```http
+POST /api/users/login HTTP/1.1
+Content-Type: application/json
+```
+
+**请求体（Body-raw-JSON）：**
+```json
 {
   "username": "user123",
   "password": "password123"
@@ -88,12 +99,12 @@ Content-Type: application/json
 
 ```json
 {
-  "success": true,
-  "code": 200,
-  "message": "登录成功",
-  "data": {
-    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-  }
+    "success": true,
+    "code": 200,
+    "message": "登录成功",
+    "data": {
+        "token": "eyJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJ1c2VyLWQ1MTE2NTc2LWRlMzEtNDJmMi1iMmUzLTcwZTAwNTc2Mzc0NyIsImlhdCI6MTc2MTc5NzI1NiwiZXhwIjoxNzYxODgzNjU2fQ.il84Pr4NlSkjoGHFhcv94irR49CRL3_R0EROfCyi_sdQp8GVcaf53t-Cow2ofcihAXsyTgJm6RnRjSVgL_a5Ew"
+    }
 }
 ```
 
@@ -103,12 +114,13 @@ Content-Type: application/json
 
 ---
 
-### 3. 获取用户信息
+### 3. 获取当前用户信息
 
 **请求**
 
+**URL & Header：**
 ```http
-GET /users/{userId} HTTP/1.1
+GET /api/users/me HTTP/1.1
 Authorization: Bearer {token}
 ```
 
@@ -116,35 +128,43 @@ Authorization: Bearer {token}
 
 ```json
 {
-  "success": true,
-  "code": 200,
-  "message": "操作成功",
-  "data": {
-    "userId": "user-001",
-    "username": "user123",
-    "createdAt": "2025-10-30T10:00:00Z"
-  }
+    "success": true,
+    "code": 200,
+    "message": "操作成功",
+    "data": {
+        "id": "user-d5116576-de31-42f2-b2e3-70e005763747",
+        "username": "tinglans",
+        "email": null,
+        "passwordHash": "$2a$10$5wEEpkRVHnReIcUm81p72.rjnvriU/4XxGXp17on0j4NgzO1YcWTy",
+        "preferences": [],
+        "defaultCurrency": "CNY",
+        "createdAt": "2025-10-30T03:57:16.285Z",
+        "lastLoginAt": "2025-10-30T04:01:21.848Z"
+    }
 }
 ```
 
 **错误情况**
 
 - `401`: Token 无效或过期
-- `404`: 用户不存在
 
 ---
 
 ### 4. 获取用户偏好
 
+
 **请求**
 
+**URL & Header：**
 ```http
-GET /users/preferences HTTP/1.1
+GET /api/users/preferences HTTP/1.1
 Authorization: Bearer {token}
 ```
 
-**响应**
+**请求体（Body-raw-JSON）：**
+无
 
+**响应**
 ```json
 {
   "success": true,
@@ -155,20 +175,24 @@ Authorization: Bearer {token}
 ```
 
 **错误情况**
-
 - `401`: 未授权
 
 ---
 
 ### 5. 更新用户偏好
 
+
 **请求**
 
+**URL & Header：**
 ```http
-PUT /users/preferences HTTP/1.1
+PUT /api/users/preferences HTTP/1.1
 Authorization: Bearer {token}
 Content-Type: application/json
+```
 
+**请求体（Body-raw-JSON）：**
+```json
 {
   "preferences": "喜欢自然风光;预算较高"
 }
@@ -178,10 +202,10 @@ Content-Type: application/json
 
 ```json
 {
-  "success": true,
-  "code": 200,
-  "message": "偏好更新成功",
-  "data": null
+    "success": true,
+    "code": 200,
+    "message": "偏好更新成功",
+    "data": null
 }
 ```
 
@@ -198,13 +222,17 @@ Content-Type: application/json
 
 **请求**
 
+**URL & Header：**
 ```http
-POST /trips/from-text HTTP/1.1
+POST /api/trips HTTP/1.1
 Authorization: Bearer {token}
 Content-Type: application/json
+```
 
+**请求体（Body-raw-JSON）：**
+```json
 {
-  "text": "我想去北京玩3天，预算5000块"
+  "userInput": "我想去北京玩3天，预算5000块"
 }
 ```
 
@@ -243,7 +271,8 @@ Content-Type: application/json
 **请求**
 
 ```http
-POST /trips/{tripId}/confirm HTTP/1.1
+
+POST /api/trips/{tripId}/confirm HTTP/1.1
 Authorization: Bearer {token}
 Content-Type: application/json
 ```
@@ -274,10 +303,14 @@ Content-Type: application/json
 
 **请求**
 
+**URL & Header：**
 ```http
-GET /trips/confirmed HTTP/1.1
+GET /api/trips HTTP/1.1
 Authorization: Bearer {token}
 ```
+
+**请求体（Body-raw-JSON）：**
+无
 
 **响应**
 
@@ -307,12 +340,17 @@ Authorization: Bearer {token}
 
 ### 4. 获取行程详情与行程单
 
+
 **请求**
 
+**URL & Header：**
 ```http
-GET /trips/{tripId}/itinerary HTTP/1.1
+GET /api/trips/{tripId}/itinerary HTTP/1.1
 Authorization: Bearer {token}
 ```
+
+**请求体（Body-raw-JSON）：**
+无
 
 **响应**
 
@@ -357,14 +395,17 @@ Authorization: Bearer {token}
 
 **请求**
 
+**URL & Header：**
 ```http
-POST /expenses/from-text HTTP/1.1
+POST /api/trips/{tripId}/expenses HTTP/1.1
 Authorization: Bearer {token}
 Content-Type: application/json
+```
 
+**请求体（Body-raw-JSON）：**
+```json
 {
-  "tripId": "trip-001",
-  "text": "早上买了门票60块"
+  "textInput": "早上买了门票60块"
 }
 ```
 
@@ -398,10 +439,14 @@ Content-Type: application/json
 
 **请求**
 
+**URL & Header：**
 ```http
-GET /expenses?tripId={tripId} HTTP/1.1
+GET /api/trips/{tripId}/expenses HTTP/1.1
 Authorization: Bearer {token}
 ```
+
+**请求体（Body-raw-JSON）：**
+无
 
 **响应**
 
@@ -432,49 +477,18 @@ Authorization: Bearer {token}
 
 ## 预算模块 (Budget API)
 
-### 1. 获取预算信息
+### 1. 获取预算分析
 
 **请求**
 
+**URL & Header：**
 ```http
-GET /budgets/{tripId} HTTP/1.1
+GET /api/trips/{tripId}/budget HTTP/1.1
 Authorization: Bearer {token}
 ```
 
-**响应**
-
-```json
-{
-  "success": true,
-  "code": 200,
-  "message": "操作成功",
-  "data": {
-    "tripId": "trip-001",
-    "totalBudget": 5000,
-    "categoryBudgets": {
-      "景点门票": 1000,
-      "餐饮": 1500,
-      "住宿": 2000
-    }
-  }
-}
-```
-
-**错误情况**
-
-- `404`: 行程不存在
-- `401`: 未授权
-
----
-
-### 2. 获取预算分析
-
-**请求**
-
-```http
-GET /budgets/{tripId}/summary HTTP/1.1
-Authorization: Bearer {token}
-```
+**请求体（Body-raw-JSON）：**
+无
 
 **响应**
 
@@ -513,19 +527,61 @@ Authorization: Bearer {token}
 
 ---
 
+### 2. 获取预算信息
+
+**请求**
+
+**URL & Header：**
+```http
+GET /api/trips/{tripId}/budget/info HTTP/1.1
+Authorization: Bearer {token}
+```
+
+**请求体（Body-raw-JSON）：**
+无
+
+**响应**
+
+```json
+{
+  "success": true,
+  "code": 200,
+  "message": "操作成功",
+  "data": {
+    "tripId": "trip-001",
+    "totalBudget": 5000,
+    "categoryBudgets": {
+      "景点门票": 1000,
+      "餐饮": 1500,
+      "住宿": 2000
+    }
+  }
+}
+```
+
+**错误情况**
+
+- `404`: 行程不存在
+- `401`: 未授权
+
+---
+
 ## 语音模块 (Speech API)
 
 ### 1. 语音转文字
 
+
 **请求**
 
+**URL & Header：**
 ```http
-POST /speech/transcribe HTTP/1.1
+POST /api/speech/transcribe HTTP/1.1
 Authorization: Bearer {token}
 Content-Type: multipart/form-data
-
-[上传 .wav/.mp3 音频文件作为 "audio" 字段]
 ```
+
+**请求体（Body-raw-JSON）：**
+上传 .wav/.mp3 音频文件作为 "audio" 字段
 
 **响应**
 
@@ -552,12 +608,20 @@ Content-Type: multipart/form-data
 
 ### 获取 Token
 
-1. 调用 `/users/register` 注册新用户
-2. 调用 `/users/login` 获取 JWT Token
-3. 在所有需要认证的请求头中添加：
+
+1. 调用 `/api/users/register` 注册新用户（Body 选择 raw，JSON 格式）
+2. 调用 `/api/users/login` 获取 JWT Token（Body 选择 raw，JSON 格式）
+3. 登录成功后，所有需要认证的接口都在请求头加：
 
 ```
 Authorization: Bearer {token}
+```
+
+例如：
+
+```
+GET /api/users/{userId} HTTP/1.1
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 ```
 
 ### Token 过期
@@ -630,29 +694,33 @@ Authorization: Bearer {token}
 ### 完整的行程创建到预算分析流程
 
 ```
-1. POST /users/register
+1. POST /api/users/register
    → 获取 userId
 
-2. POST /users/login
+2. POST /api/users/login
    → 获取 token
 
-3. POST /trips/from-text
+3. POST /api/trips
    - 使用 token 认证
-   - 文本: "我想去北京玩3天，预算5000块"
+   - 请求体: { "userInput": "我想去北京玩3天，预算5000块" }
    → 获取 tripId
 
-4. POST /trips/{tripId}/confirm
+4. POST /api/trips/{tripId}/confirm
    - 使用 token 认证
    → 确认行程
 
-5. POST /expenses/from-text
+5. POST /api/trips/{tripId}/expenses
    - 使用 token 认证
-   - 文本: "早上买了门票60块"
+   - 请求体: { "textInput": "早上买了门票60块" }
    → 创建开销
 
-6. GET /budgets/{tripId}/summary
+6. GET /api/trips/{tripId}/budget
    - 使用 token 认证
    → 获取预算分析结果
+
+7. GET /api/trips/{tripId}/budget/info
+   - 使用 token 认证
+   → 获取预算分类信息
 ```
 
 ---
