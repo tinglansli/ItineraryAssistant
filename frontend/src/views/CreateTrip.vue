@@ -108,6 +108,22 @@
       </div>
     </transition>
 
+    <!-- 语音识别弹窗 -->
+    <transition name="modal-fade">
+      <div v-if="showVoiceModal" class="modal-overlay">
+        <div class="modal-content-voice">
+          <div class="voice-animation">
+            <div class="wave-circle wave-1"></div>
+            <div class="wave-circle wave-2"></div>
+            <div class="wave-circle wave-3"></div>
+            <div class="microphone-icon">🎤</div>
+          </div>
+          <h3 class="modal-title">正在识别语音...</h3>
+          <p class="modal-subtitle">请稍候,AI正在处理您的语音</p>
+        </div>
+      </div>
+    </transition>
+
     <!-- 生成进度弹窗 -->
     <transition name="modal-fade">
       <div v-if="isGenerating" class="modal-overlay">
@@ -131,6 +147,7 @@ import { ref, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import apiClient from '@/api/auth'
 import Toast from '@/components/Toast.vue'
+import AudioRecorder from '@/utils/audioRecorder'
 
 export default {
   name: 'CreateTripView',
@@ -149,12 +166,12 @@ export default {
     const generatingMessage = ref('正在生成行程')
     const progress = ref(0)
     const showPreferenceModal = ref(false)
+    const showVoiceModal = ref(false)
     const preferences = ref('')
     const isSavingPreference = ref(false)
     
     // 语音相关
-    let mediaRecorder = null
-    let audioChunks = []
+    let audioRecorder = null
     let progressInterval = null
 
     // 显示Toast通知
@@ -208,41 +225,73 @@ export default {
     // 开始录音
     const startRecording = async () => {
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-        mediaRecorder = new MediaRecorder(stream)
-        audioChunks = []
-
-        mediaRecorder.ondataavailable = (event) => {
-          audioChunks.push(event.data)
+        // 检查浏览器是否支持
+        if (!AudioRecorder.isSupported()) {
+          showToast('您的浏览器不支持录音功能', 'error')
+          return
         }
 
-        mediaRecorder.onstop = async () => {
-          const audioBlob = new Blob(audioChunks, { type: 'audio/wav' })
-          await transcribeAudio(audioBlob)
-          
-          // 停止所有音轨
-          stream.getTracks().forEach(track => track.stop())
+        // 先检查是否有麦克风设备
+        const devices = await navigator.mediaDevices.enumerateDevices()
+        const hasMicrophone = devices.some(device => device.kind === 'audioinput')
+        
+        if (!hasMicrophone) {
+          showToast('未检测到麦克风设备，请连接麦克风后重试', 'error')
+          return
         }
 
-        mediaRecorder.start()
+        // 创建录音器实例
+        audioRecorder = new AudioRecorder()
+        await audioRecorder.start()
+        
         isRecording.value = true
+        console.log('开始录音，将自动转换为 WAV 格式')
       } catch (error) {
         console.error('录音失败:', error)
-        alert('无法访问麦克风，请检查权限设置')
+        
+        let errorMessage = '无法访问麦克风'
+        if (error.name === 'NotFoundError') {
+          errorMessage = '未找到麦克风设备，请检查麦克风是否正确连接'
+        } else if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
+          errorMessage = '麦克风权限被拒绝，请在浏览器设置中允许使用麦克风'
+        } else if (error.name === 'NotReadableError') {
+          errorMessage = '麦克风被其他应用占用，请关闭其他使用麦克风的程序'
+        } else if (error.name === 'SecurityError') {
+          errorMessage = '无法访问麦克风：请使用 HTTPS 或 localhost 访问'
+        }
+        
+        showToast(errorMessage, 'error')
       }
     }
 
     // 停止录音
-    const stopRecording = () => {
-      if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-        mediaRecorder.stop()
+    const stopRecording = async () => {
+      if (audioRecorder && isRecording.value) {
         isRecording.value = false
+        
+        try {
+          // 停止录音并获取 WAV 格式的音频
+          const wavBlob = await audioRecorder.stop()
+          console.log('录音完成，音频大小:', wavBlob.size, 'bytes')
+          
+          // 转换为文字
+          await transcribeAudio(wavBlob)
+        } catch (error) {
+          console.error('停止录音失败:', error)
+          showToast('录音处理失败，请重试', 'error')
+        }
+        
+        audioRecorder = null
       }
     }
 
     // 语音转文字
     const transcribeAudio = async (audioBlob) => {
+      showVoiceModal.value = true
+
       try {
+        console.log('上传 WAV 音频，大小:', audioBlob.size, 'bytes')
+        
         const formData = new FormData()
         formData.append('audio', audioBlob, 'recording.wav')
 
@@ -251,6 +300,8 @@ export default {
             'Content-Type': 'multipart/form-data'
           }
         })
+
+        showVoiceModal.value = false
 
         if (response.success) {
           userInput.value = response.data
@@ -261,7 +312,10 @@ export default {
         }
       } catch (error) {
         console.error('语音转文字失败:', error)
-        showToast('语音识别失败，请重试或直接输入文字', 'error')
+        showVoiceModal.value = false
+        
+        const errorMsg = error.response?.data?.message || '语音识别失败，请重试'
+        showToast(errorMsg, 'error')
       }
     }
 
@@ -378,7 +432,7 @@ export default {
       if (progressInterval) {
         clearInterval(progressInterval)
       }
-      if (isRecording.value) {
+      if (audioRecorder && isRecording.value) {
         stopRecording()
       }
     })
@@ -392,6 +446,7 @@ export default {
       generatingMessage,
       progress,
       showPreferenceModal,
+      showVoiceModal,
       preferences,
       isSavingPreference,
       goBack,
@@ -572,9 +627,9 @@ export default {
 .voice-button-inline {
   position: absolute;
   right: 1vw;
-  top: 1vw;
-  width: 2.5vw;
-  height: 2.5vw;
+  bottom: 1vw;
+  width: 3.5vw;
+  height: 3.5vw;
   background: transparent;
   border: 0.125vw solid #ccc;
   border-radius: 0.5vw;
@@ -610,8 +665,8 @@ export default {
 
 .mic-icon,
 .stop-icon {
-  width: 1.25vw;
-  height: 1.25vw;
+  width: 1.8vw;
+  height: 1.8vw;
 }
 
 /* 提交按钮 - 圆形设计 */
@@ -701,6 +756,108 @@ export default {
   justify-content: center;
   z-index: 1000;
   backdrop-filter: blur(5px);
+}
+
+/* 语音识别弹窗 */
+.modal-content-voice {
+  background: white;
+  border-radius: 2vw;
+  padding: 3vw;
+  max-width: 35vw;
+  text-align: center;
+  box-shadow: 0 1.5vw 4vw rgba(0, 0, 0, 0.3);
+  animation: modal-in 0.3s ease-out;
+}
+
+@keyframes modal-in {
+  from {
+    opacity: 0;
+    transform: scale(0.9) translateY(2vw);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* 语音动画 */
+.voice-animation {
+  position: relative;
+  width: 12vw;
+  height: 12vw;
+  margin: 0 auto 2vw auto;
+}
+
+.wave-circle {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  border: 0.3vw solid #667eea;
+  opacity: 0;
+  animation: wave-pulse 2s ease-out infinite;
+}
+
+.wave-1 {
+  width: 8vw;
+  height: 8vw;
+  animation-delay: 0s;
+}
+
+.wave-2 {
+  width: 10vw;
+  height: 10vw;
+  animation-delay: 0.6s;
+}
+
+.wave-3 {
+  width: 12vw;
+  height: 12vw;
+  animation-delay: 1.2s;
+}
+
+@keyframes wave-pulse {
+  0% {
+    transform: translate(-50%, -50%) scale(0.5);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(1.2);
+    opacity: 0;
+  }
+}
+
+.microphone-icon {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 3.5vw;
+  animation: mic-bounce 1s ease-in-out infinite;
+}
+
+@keyframes mic-bounce {
+  0%, 100% {
+    transform: translate(-50%, -50%) scale(1);
+  }
+  50% {
+    transform: translate(-50%, -50%) scale(1.1);
+  }
+}
+
+/* 弹窗文字 */
+.modal-title {
+  font-size: 1.6vw;
+  font-weight: 700;
+  color: #333;
+  margin: 0 0 0.8vw 0;
+}
+
+.modal-subtitle {
+  font-size: 1.1vw;
+  color: #999;
+  margin: 0;
 }
 
 .modal-container {
