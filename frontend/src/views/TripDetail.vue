@@ -386,7 +386,13 @@ export default {
           return
         }
         const script = document.createElement('script')
-        const apiKey = '8e1060ffae0732dd667f101191a51044' // 从后端配置读取
+        // API Key必须通过环境变量注入，构建时设置 VUE_APP_AMAP_API_KEY
+        const apiKey = process.env.VUE_APP_AMAP_API_KEY
+        if (!apiKey) {
+          console.error('高德地图API Key未配置，请在构建时设置环境变量 VUE_APP_AMAP_API_KEY')
+          reject(new Error('高德地图API Key未配置'))
+          return
+        }
         script.src = `https://webapi.amap.com/maps?v=2.0&key=${apiKey}`
         script.onload = resolve
         script.onerror = reject

@@ -2,7 +2,6 @@ import axios from 'axios'
 import router from '@/router'
 
 // 创建 axios 实例
-// TODO: Docker 打包时改为 process.env.VUE_APP_API_BASE_URL
 const apiClient = axios.create({
   baseURL: '/api',
   headers: {
