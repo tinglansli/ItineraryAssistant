@@ -1,5 +1,8 @@
 <template>
   <div class="auth-container">
+    <!-- Toast 通知组件 -->
+    <Toast ref="toastRef" />
+
     <!-- 背景装饰圆圈 -->
     <div class="bg-circles">
       <div class="circle circle-1"></div>
@@ -114,11 +117,16 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { login, register } from '@/api/auth'
+import Toast from '@/components/Toast.vue'
 
 export default {
   name: 'AuthView',
+  components: {
+    Toast
+  },
   setup() {
     const router = useRouter()
+    const toastRef = ref(null)
     
     // 响应式数据
     const isLogin = ref(true)
@@ -126,6 +134,13 @@ export default {
     const password = ref('')
     const errorMessage = ref('')
     const isLoading = ref(false)
+
+    // 显示Toast通知
+    const showToast = (message, type = 'success') => {
+      if (toastRef.value) {
+        toastRef.value.show(message, type)
+      }
+    }
 
     // 切换登录/注册模式
     const toggleMode = () => {
@@ -167,9 +182,17 @@ export default {
             // 存储 Token
             localStorage.setItem('token', response.data.token)
             
-            // 跳转到主页
-            router.push('/home')
+            // 显示成功提示
+            showToast('登录成功！', 'success')
+            
+            // 短暂延迟后跳转,让用户看到 Toast
+            setTimeout(() => {
+              router.push('/home')
+            }, 800)
           } else {
+            // 登录失败，清除可能存在的旧 token（避免路由守卫误判）
+            localStorage.removeItem('token')
+            localStorage.removeItem('userId')
             errorMessage.value = response.message || '登录失败'
           }
         } else {
@@ -177,19 +200,26 @@ export default {
           const response = await register(username.value, password.value)
           
           if (response.success) {
-            // 注册成功，自动切换到登录模式
-            errorMessage.value = ''
-            isLogin.value = true
-            password.value = ''
+            // 注册成功，显示 Toast 提示
+            showToast('注册成功！请登录', 'success')
             
-            // 显示成功提示（可选）
-            alert('注册成功！请登录')
+            // 延迟切换到登录模式,让用户看到 Toast
+            setTimeout(() => {
+              isLogin.value = true
+              password.value = '' // 清空密码
+              // username 保留,自动填入刚注册的用户名
+              errorMessage.value = ''
+            }, 500)
           } else {
             errorMessage.value = response.message || '注册失败'
           }
         }
       } catch (error) {
         console.error('请求失败:', error)
+        
+        // 登录/注册失败时，清除可能存在的 token
+        localStorage.removeItem('token')
+        localStorage.removeItem('userId')
         
         if (error.response) {
           const { data } = error.response
@@ -205,6 +235,7 @@ export default {
     }
 
     return {
+      toastRef,
       isLogin,
       username,
       password,

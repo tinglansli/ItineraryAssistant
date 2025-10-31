@@ -87,6 +87,7 @@ export default {
 
 .toast-message {
   flex: 1;
+  text-align: center; /* 文字居中 */
 }
 
 /* 成功样式 */

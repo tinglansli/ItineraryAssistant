@@ -1,4 +1,5 @@
 import axios from 'axios'
+import router from '@/router'
 
 // 创建 axios 实例
 // TODO: Docker 打包时改为 process.env.VUE_APP_API_BASE_URL
@@ -29,10 +30,16 @@ apiClient.interceptors.response.use(
     return response.data
   },
   error => {
-    // 401 未授权，清除 token 并跳转到登录页
+    // 401 未授权，清除 token
     if (error.response && error.response.status === 401) {
       localStorage.removeItem('token')
-      window.location.href = '/auth'
+      localStorage.removeItem('userId')
+      
+      // 使用 router.push 而不是 window.location.href，避免页面刷新
+      // 但只在不是登录页时跳转
+      if (router.currentRoute.value.path !== '/auth') {
+        router.push('/auth')
+      }
     }
     return Promise.reject(error)
   }

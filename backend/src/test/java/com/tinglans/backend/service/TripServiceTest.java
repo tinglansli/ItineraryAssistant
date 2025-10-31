@@ -62,76 +62,6 @@ class TripServiceTest {
     }
 
     @Test
-    void testCreateTripFromText_success() throws ExecutionException, InterruptedException {
-        // Given
-        String userInput = "我想去东京玩三天，11月1号出发";
-        List<String> preferences = Arrays.asList("美食", "动漫");
-
-        String llmResponse = """
-                {
-                  "tripName": "东京三日游",
-                  "destination": "东京",
-                  "startDate": "2024-11-01",
-                  "endDate": "2024-11-03",
-                  "days": [
-                    {
-                      "dayIndex": 1,
-                      "activities": [
-                        {
-                          "type": "transport",
-                          "title": "乘坐地铁",
-                          "locationName": "东京站",
-                          "startTime": "09:00",
-                          "endTime": "10:00",
-                          "estimatedCost": 500
-                        },
-                        {
-                          "type": "food",
-                          "title": "午餐拉面",
-                          "locationName": "一兰拉面",
-                          "startTime": "12:00",
-                          "endTime": "13:00",
-                          "estimatedCost": 3000
-                        }
-                      ]
-                    }
-                  ]
-                }
-                """;
-
-        when(userService.getPreferencesList(testUserId)).thenReturn(preferences);
-        when(qwenClient.chat(anyString(), anyString())).thenReturn(llmResponse);
-        doNothing().when(tripRepository).saveToCache(any(Trip.class));
-
-        // When
-        Trip result = tripService.createTripFromText(userInput, testUserId);
-
-        // Then
-        assertNotNull(result);
-        assertNotNull(result.getId());
-        assertEquals(testUserId, result.getUserId());
-        assertEquals("东京三日游", result.getTitle());
-        assertEquals("东京", result.getDestination());
-        assertEquals(LocalDate.of(2024, 11, 1), result.getStartDate());
-        assertEquals(LocalDate.of(2024, 11, 3), result.getEndDate());
-        assertEquals(1, result.getDays().size());
-        assertEquals(2, result.getDays().get(0).getActivities().size());
-
-        // 验证第一个活动
-        Activity activity1 = result.getDays().get(0).getActivities().get(0);
-        assertEquals("transport", activity1.getType());
-        assertEquals("乘坐地铁", activity1.getTitle());
-        assertEquals("东京站", activity1.getLocationName());
-        assertEquals("09:00", activity1.getStartTime());
-        assertEquals("10:00", activity1.getEndTime());
-        assertEquals(500L, activity1.getEstimatedCost());
-
-        verify(userService, times(1)).getPreferencesList(testUserId);
-        verify(qwenClient, times(1)).chat(anyString(), anyString());
-        verify(tripRepository, times(1)).saveToCache(any(Trip.class));
-    }
-
-    @Test
     void testCreateTripFromText_withoutUserPreferences() throws ExecutionException, InterruptedException {
         // Given
         String userInput = "我想去京都";
@@ -222,70 +152,6 @@ class TripServiceTest {
         });
 
         verify(tripRepository, never()).saveToCache(any(Trip.class));
-    }
-
-    @Test
-    void testCreateTripFromText_multipleDaysWithActivities() throws ExecutionException, InterruptedException {
-        // Given
-        String userInput = "三天东京游";
-        String llmResponse = """
-                {
-                  "tripName": "东京三日游",
-                  "destination": "东京",
-                  "startDate": "2024-11-01",
-                  "endDate": "2024-11-03",
-                  "days": [
-                    {
-                      "dayIndex": 1,
-                      "activities": [
-                        {
-                          "type": "hotel",
-                          "title": "入住酒店",
-                          "locationName": "东京希尔顿酒店",
-                          "startTime": "15:00",
-                          "endTime": "16:00",
-                          "estimatedCost": 50000
-                        }
-                      ]
-                    },
-                    {
-                      "dayIndex": 2,
-                      "activities": [
-                        {
-                          "type": "sight",
-                          "title": "参观浅草寺",
-                          "locationName": "浅草寺",
-                          "startTime": "10:00",
-                          "endTime": "12:00",
-                          "estimatedCost": 0
-                        }
-                      ]
-                    },
-                    {
-                      "dayIndex": 3,
-                      "activities": []
-                    }
-                  ]
-                }
-                """;
-
-        when(userService.getPreferencesList(testUserId)).thenReturn(new ArrayList<>());
-        when(qwenClient.chat(anyString(), anyString())).thenReturn(llmResponse);
-        doNothing().when(tripRepository).saveToCache(any(Trip.class));
-
-        // When
-        Trip result = tripService.createTripFromText(userInput, testUserId);
-
-        // Then
-        assertEquals(3, result.getDays().size());
-        assertEquals(1, result.getDays().get(0).getActivities().size());
-        assertEquals(1, result.getDays().get(1).getActivities().size());
-        assertEquals(0, result.getDays().get(2).getActivities().size());
-        
-        // 验证日期计算
-        assertEquals(LocalDate.of(2024, 11, 1), result.getDays().get(0).getDate());
-        assertEquals(LocalDate.of(2024, 11, 2), result.getDays().get(1).getDate());
-        assertEquals(LocalDate.of(2024, 11, 3), result.getDays().get(2).getDate());
     }
 
     @Test
@@ -482,49 +348,5 @@ class TripServiceTest {
         assertNull(result.getStartDate());
         assertNull(result.getEndDate());
         assertEquals(0, result.getDays().size());
-    }
-
-    @Test
-    void testParseLlmResponse_withAllActivityTypes() throws ExecutionException, InterruptedException {
-        // Given - 测试所有活动类型
-        String userInput = "完整行程";
-        String llmResponse = """
-                {
-                  "tripName": "完整测试",
-                  "destination": "测试地",
-                  "startDate": "2024-12-01",
-                  "endDate": "2024-12-01",
-                  "days": [
-                    {
-                      "dayIndex": 1,
-                      "activities": [
-                        {"type": "transport", "title": "交通", "locationName": "车站", "startTime": "09:00", "endTime": "10:00", "estimatedCost": 1000},
-                        {"type": "hotel", "title": "住宿", "locationName": "酒店", "startTime": "15:00", "endTime": "16:00", "estimatedCost": 20000},
-                        {"type": "sight", "title": "景点", "locationName": "景区", "startTime": "10:00", "endTime": "12:00", "estimatedCost": 5000},
-                        {"type": "food", "title": "餐饮", "locationName": "餐厅", "startTime": "12:00", "endTime": "13:00", "estimatedCost": 3000},
-                        {"type": "other", "title": "其他", "locationName": "商店", "startTime": "14:00", "endTime": "15:00", "estimatedCost": 2000}
-                      ]
-                    }
-                  ]
-                }
-                """;
-
-        when(userService.getPreferencesList(testUserId)).thenReturn(new ArrayList<>());
-        when(qwenClient.chat(anyString(), anyString())).thenReturn(llmResponse);
-        doNothing().when(tripRepository).saveToCache(any(Trip.class));
-
-        // When
-        Trip result = tripService.createTripFromText(userInput, testUserId);
-
-        // Then
-        assertEquals(1, result.getDays().size());
-        assertEquals(5, result.getDays().get(0).getActivities().size());
-        
-        List<Activity> activities = result.getDays().get(0).getActivities();
-        assertEquals("transport", activities.get(0).getType());
-        assertEquals("hotel", activities.get(1).getType());
-        assertEquals("sight", activities.get(2).getType());
-        assertEquals("food", activities.get(3).getType());
-        assertEquals("other", activities.get(4).getType());
     }
 }

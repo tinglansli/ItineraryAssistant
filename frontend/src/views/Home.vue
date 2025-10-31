@@ -40,6 +40,7 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { getCurrentUser } from '@/api/auth'
+import { logout } from '@/router' // 导入路由的logout函数
 
 export default {
   name: 'HomeView',
@@ -47,10 +48,9 @@ export default {
     const router = useRouter()
     const userInfo = ref(null)
 
-    // 退出登录
+    // 退出登录 - 使用路由提供的logout函数,清除缓存和token验证
     const handleLogout = () => {
-      localStorage.removeItem('token')
-      router.push('/auth')
+      logout()
     }
 
     // 跳转到创建行程页面
