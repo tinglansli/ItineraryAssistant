@@ -1,13 +1,11 @@
 package com.tinglans.backend.config;
 
-import com.google.auth.oauth2.GoogleCredentials;
 import com.google.cloud.firestore.Firestore;
 import com.google.cloud.firestore.FirestoreOptions;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.core.io.Resource;
 
 /**
  * Firebase/Firestore 配置类
@@ -22,31 +20,27 @@ public class FirebaseConfig {
     @Value("${firebase.emulator.host}")
     private String emulatorHost;
     
-    @Value("${firebase.credentials-path:classpath:firebase-service-account.json}")
-    private Resource credentialsPath;
-
     @Bean
     public Firestore firestore() {
-        log.info("初始化 Firestore 连接");
+        log.info("初始化 Firestore Emulator 连接");
         log.info("项目ID: {}", projectId);
-        log.info("Firestore Host: {}", emulatorHost);
+        log.info("Emulator Host: {}", emulatorHost);
         
         try {
-            GoogleCredentials credentials = GoogleCredentials.fromStream(
-                    credentialsPath.getInputStream()
-            );
-            
+            // 演示项目：仅使用 Firestore Emulator，不需要 credentials
             FirestoreOptions options = FirestoreOptions.newBuilder()
                     .setProjectId(projectId)
-                    .setCredentials(credentials)
                     .setEmulatorHost(emulatorHost)
                     .build();
             
-            log.info("✅ Firestore 连接成功");
-            return options.getService();
+            Firestore firestore = options.getService();
+            
+            log.info("✅ Firestore Emulator 连接成功");
+            return firestore;
         } catch (Exception e) {
-            log.error("❌ Firestore 初始化失败", e);
-            throw new RuntimeException("Failed to initialize Firestore", e);
+            log.error("❌ Firestore Emulator 初始化失败", e);
+            log.error("配置信息 - 项目ID: {}, Emulator Host: {}", projectId, emulatorHost);
+            throw new RuntimeException("Failed to initialize Firestore Emulator", e);
         }
     }
 }
