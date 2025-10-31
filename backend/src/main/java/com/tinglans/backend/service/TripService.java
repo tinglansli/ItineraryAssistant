@@ -193,7 +193,7 @@ public class TripService {
      */
     private String buildTripGenerationSystemPrompt() {
         return """
-            你是一个专业的旅行规划助手。根据用户提供的目的地、天数、人数和预算信息，生成详细的旅行行程规划。
+            你是一个专业的旅行规划助手。根据用户提供的目的地、天数、人数和预算信息（单位：元），生成详细的旅行行程规划。
             
             【重要】你必须只返回纯JSON格式的数据，不要包含任何其他文字、解释或markdown代码块标记。
             直接从 { 开始，到 } 结束，确保是可以被JSON解析器直接解析的有效JSON。
@@ -242,7 +242,7 @@ public class TripService {
             - estimatedCost: 整数, 单位是分(1元=100分)
             
             ===== 生成行程的逻辑规则 =====
-            0. 所有活动的预估费用加起来应该在总预算附近（允许有10%的浮动）
+            0. 【所有活动的预估费之和】与【用户期望的预算】的误差应小于10%（注意：用户预算的单位是元，系统使用的单位是分，1元=100分）
             1. 每天安排 3-5 个活动，确保时间分配合理且地理位置相近
             2. 第一天应该包含交通（从出发地到目的地）和酒店入住
             3. 最后一天应该包含交通返回（从目的地回到出发地）
@@ -257,7 +257,8 @@ public class TripService {
             4. headcount字段必须存在，不能为null或空
             5. 不要添加注释
 
-            **重要：生成完成后，检查输出是否符合格式规则。如果不符合则重新生成。**
+            **重要：生成完成后，用python代码检查输出是否符合格式规则。如果不符合则重新生成。**
+            **重要：生成完成后，用python代码计算【各活动开销之和】，保证与【用户期望预算】的误差小于10%**
             """;
     }
 
@@ -275,7 +276,7 @@ public class TripService {
         String preferencesText = String.join("、", preferences);
         
         // 将用户偏好加入到输入中
-        return userInput + "\n\n我的旅行偏好：" + preferencesText;
+        return userInput + "\n\n我的旅行偏好：" + preferencesText + "\n\n尽量把预算都花完，最好不多不少刚刚好";
     }
 
     /**
