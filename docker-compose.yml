@@ -1,0 +1,74 @@
+version: '3.8'
+
+services:
+  # Redis service
+  redis:
+    image: redis:7-alpine
+    container_name: itinerary-redis
+    ports:
+      - "6380:6379"
+    volumes:
+      - redis-data:/data
+    command: redis-server --appendonly yes
+    networks:
+      - itinerary-network
+
+  # Firebase/Firestore emulator
+  firestore-emulator:
+    image: gcr.io/google.com/cloudsdktool/google-cloud-cli:emulators
+    container_name: itinerary-firestore
+    ports:
+      - "8081:8080"
+    command: gcloud emulators firestore start --host-port=0.0.0.0:8080
+    networks:
+      - itinerary-network
+
+  # Backend service
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: itinerary-backend
+    ports:
+      - "8080:8080"
+    environment:
+      # Docker环境特定配置
+      - REDIS_HOST=redis
+      - FIRESTORE_EMULATOR_HOST=firestore-emulator:8080
+      # API Keys - 必须从 .env 文件配置
+      - DASHSCOPE_API_KEY=${DASHSCOPE_API_KEY}
+      - XFYUN_APP_ID=${XFYUN_APP_ID}
+      - XFYUN_API_KEY=${XFYUN_API_KEY}
+      - XFYUN_API_SECRET=${XFYUN_API_SECRET}
+      - AMAP_API_KEY=${AMAP_API_KEY}
+    depends_on:
+      - redis
+      - firestore-emulator
+    networks:
+      - itinerary-network
+    restart: unless-stopped
+
+  # Frontend service
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VUE_APP_AMAP_API_KEY: ${VUE_APP_AMAP_API_KEY}
+    container_name: itinerary-frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks:
+      - itinerary-network
+    restart: unless-stopped
+
+volumes:
+  redis-data:
+    driver: local
+
+networks:
+  itinerary-network:
+    driver: bridge
+

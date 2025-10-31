@@ -1,0 +1,10 @@
+target/
+.mvn/
+.idea/
+*.iml
+*.iws
+*.ipr
+.vscode/
+src/test/
+**/firebase-service-account.json
+
