@@ -80,7 +80,7 @@ public class TripController {
             HttpServletRequest httpRequest) throws Exception {
         String userId = AuthUtil.getCurrentUserId(httpRequest);
         tripService.deleteTrip(tripId, userId);
-        return ResponseEntity.ok(ApiResponse.success("行程删除成功"));
+        return ResponseEntity.ok(ApiResponse.success("行程删除成功", null));
     }
 
     @Data
