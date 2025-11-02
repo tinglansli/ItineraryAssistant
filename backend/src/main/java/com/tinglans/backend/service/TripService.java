@@ -223,6 +223,21 @@ public class TripService {
         return """
             你是一个专业的旅行规划助手。根据用户提供的目的地、天数、人数和预算信息（单位：元），生成详细的旅行行程规划。
             
+            ===== 🔴 最高优先级：预算控制规则 🔴 =====
+            1. 用户提供的预算单位是【元】，系统要求的 estimatedCost 单位是【分】，1元 = 100分
+            2. 【所有活动的 estimatedCost 之和】必须在【用户预算×100±5%】范围内
+            3. 预算分配策略：
+               - 交通（往返）：占总预算的 25-35%
+               - 住宿：占总预算的 25-35%（根据天数平均分配）
+               - 景点门票：占总预算的 15-20%
+               - 餐饮：占总预算的 20-25%（根据天数和人数调整）
+               - 其他：占总预算的 5-10%
+            4. 生成步骤：
+               第一步：计算总预算分（用户预算元 × 100）
+               第二步：按上述比例分配各类活动的预算
+               第三步：在各天中分配活动，确保每个活动的 estimatedCost 合理
+               第四步：生成前验证所有 estimatedCost 之和是否符合要求
+            
             【重要】你必须只返回纯JSON格式的数据，不要包含任何其他文字、解释或markdown代码块标记。
             直接从 { 开始，到 } 结束，确保是可以被JSON解析器直接解析的有效JSON。
             
@@ -270,13 +285,11 @@ public class TripService {
             - estimatedCost: 整数, 单位是分(1元=100分)
             
             ===== 生成行程的逻辑规则 =====
-            0. 【所有活动的预估费之和】与【用户期望的预算】的误差应小于10%（注意：用户预算的单位是元，系统使用的单位是分，1元=100分）
             1. 每天安排 3-5 个活动，确保时间分配合理且地理位置相近
             2. 第一天应该包含交通（从出发地到目的地）和酒店入住
             3. 最后一天应该包含交通返回（从目的地回到出发地）
-            4. 根据用户提供的人数和预算信息合理分配每个活动的费用
-            5. 根据目的地的季节特点和天气条件推荐活动
-            6. 考虑用户的旅行偏好（已在用户消息中提供），融入到行程推荐中
+            4. 根据目的地的季节特点和天气条件推荐活动
+            5. 考虑用户的旅行偏好，融入到行程推荐中
 
             ===== 生成行程的格式规则 =====
             1. 必须生成指定天数的完整行程。如果用户说"7天", days 数组必须包含 1-7 天的所有数据
@@ -285,26 +298,34 @@ public class TripService {
             4. headcount字段必须存在，不能为null或空
             5. 不要添加注释
 
-            **重要：生成完成后，用python代码检查输出是否符合格式规则。如果不符合则重新生成。**
-            **重要：生成完成后，用python代码计算【各活动开销之和】，保证与【用户期望预算】的误差小于10%**
+            ===== 🔴 最终检查（必须执行）🔴 =====
+            生成 JSON 前，在心中完成以下计算：
+            1. 将所有 activities 的 estimatedCost 相加得到总和 S
+            2. 计算 S 与 (用户预算×100) 的误差百分比
+            3. 如果误差超过 5%，调整各活动的 estimatedCost，使总和接近用户预算×100
+
+            **重要：生成完成后，检查输出是否符合要求的json格式规则。如果不符合则重新生成。**
             """;
     }
 
     /**
-     * 构建增强的用户消息（加入用户偏好）
+     * 构建增强的用户消息（加入用户偏好和预算强调）
      */
     private String buildTripGenerationUserMessage(String userInput, String userId) throws ExecutionException, InterruptedException {
+        StringBuilder enhancedMessage = new StringBuilder(userInput);
+        
         // 获取用户偏好
         List<String> preferences = userService.getPreferencesList(userId);
-        
-        if (preferences.isEmpty()) {
-            return userInput;
+        if (!preferences.isEmpty()) {
+            String preferencesText = String.join("、", preferences);
+            enhancedMessage.append("\n\n我的旅行偏好：").append(preferencesText);
         }
         
-        String preferencesText = String.join("、", preferences);
+        // 强调预算控制
+        enhancedMessage.append("\n\n【重要】请严格控制预算，所有活动的预估费用之和必须接近我给出的预算金额（误差不超过5%）。");
+        enhancedMessage.append("记住：你返回的 estimatedCost 单位是【分】，而我说的预算单位是【元】，1元=100分。");
         
-        // 将用户偏好加入到输入中
-        return userInput + "\n\n我的旅行偏好：" + preferencesText + "\n\n尽量把预算都花完，最好不多不少刚刚好";
+        return enhancedMessage.toString();
     }
 
     /**
