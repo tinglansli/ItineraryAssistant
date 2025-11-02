@@ -15,8 +15,11 @@ COPY src ./src
 # Build application
 RUN mvn clean package -DskipTests -B
 
+
 # Stage 2: Runtime
 FROM eclipse-temurin:17-jre-alpine
+
+RUN apk add --no-cache ca-certificates
 
 WORKDIR /app
 
@@ -37,4 +40,3 @@ EXPOSE 8080
 
 # Start application
 ENTRYPOINT ["sh", "-c", "java -jar app.jar"]
-
