@@ -71,6 +71,18 @@ public class TripController {
         return ResponseEntity.ok(ApiResponse.success(summaries));
     }
 
+    /**
+     * 删除行程
+     */
+    @DeleteMapping("/{tripId}")
+    public ResponseEntity<ApiResponse<Void>> deleteTrip(
+            @PathVariable String tripId,
+            HttpServletRequest httpRequest) throws Exception {
+        String userId = AuthUtil.getCurrentUserId(httpRequest);
+        tripService.deleteTrip(tripId, userId);
+        return ResponseEntity.ok(ApiResponse.success("行程删除成功"));
+    }
+
     @Data
     public static class CreateTripRequest {
         private String userInput;

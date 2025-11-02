@@ -132,6 +132,20 @@ public class TripRepository {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * 从 Firestore 删除行程
+     */
+    public void deleteFromFirestore(String tripId) throws ExecutionException, InterruptedException {
+        DocumentReference docRef = firestore.collection(COLLECTION_TRIPS).document(tripId);
+        ApiFuture<WriteResult> result = docRef.delete();
+        result.get();
+        
+        // 同时删除 Redis 缓存
+        deleteFromCache(tripId);
+        
+        log.info("从 Firestore 删除行程: {}", tripId);
+    }
+
     // ========== 辅助转换方法 ==========
 
     private Map<String, Object> convertHeadcountToMap(Trip.Headcount headcount) {

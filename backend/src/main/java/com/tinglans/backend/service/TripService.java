@@ -189,6 +189,34 @@ public class TripService {
     }
 
     /**
+     * 删除行程
+     *
+     * @param tripId 行程ID
+     * @param userId 用户ID
+     */
+    public void deleteTrip(String tripId, String userId) throws ExecutionException, InterruptedException {
+        validateUserId(userId);
+        
+        log.info("开始删除行程: tripId={}, userId={}", tripId, userId);
+
+        // 1. 从 Firestore 获取行程
+        Optional<Trip> tripOpt = tripRepository.getFromFirestore(tripId);
+        if (tripOpt.isEmpty()) {
+            throw new BusinessException(ResponseCode.TRIP_NOT_FOUND);
+        }
+
+        Trip trip = tripOpt.get();
+
+        // 2. 权限校验
+        validateTripPermission(trip, userId);
+
+        // 3. 删除行程（同时删除 Firestore 和 Redis）
+        tripRepository.deleteFromFirestore(tripId);
+
+        log.info("行程删除成功: tripId={}", tripId);
+    }
+
+    /**
      * 构建行程生成的系统 Prompt
      */
     private String buildTripGenerationSystemPrompt() {

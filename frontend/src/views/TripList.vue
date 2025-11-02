@@ -85,7 +85,16 @@
           <!-- 卡片底部 -->
           <div class="card-footer">
             <span class="created-time">创建于 {{ formatDateTime(trip.createdAt) }}</span>
-            <span class="view-arrow">→</span>
+            <div class="footer-actions">
+              <button 
+                @click.stop="showDeleteConfirmation(trip)"
+                class="delete-btn"
+                title="删除行程"
+              >
+                <span class="delete-icon">🗑️</span>
+              </button>
+              <span class="view-arrow">→</span>
+            </div>
           </div>
         </div>
       </div>
@@ -110,6 +119,29 @@
         <span>创建新行程</span>
       </button>
     </div>
+
+    <!-- 确认删除弹窗 -->
+    <transition name="modal-fade">
+      <div v-if="showDeleteModal" class="modal-overlay" @click.self="showDeleteModal = false">
+        <div class="modal-container">
+          <div class="modal-header">
+            <h2>⚠️ 确认删除</h2>
+            <button @click="showDeleteModal = false" class="modal-close">✕</button>
+          </div>
+          <div class="modal-body">
+            <p class="modal-warning">您确定要删除这个行程吗？</p>
+            <p class="modal-trip-name">{{ tripToDelete?.title }}</p>
+            <p class="modal-hint">此操作无法撤销，删除后将无法恢复该行程的所有信息。</p>
+          </div>
+          <div class="modal-footer">
+            <button @click="showDeleteModal = false" class="modal-button cancel">取消</button>
+            <button @click="confirmDelete" class="modal-button delete" :disabled="isDeleting">
+              {{ isDeleting ? '删除中...' : '确认删除' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </transition>
   </div>
 </template>
 
@@ -129,6 +161,9 @@ export default {
     const toastRef = ref(null)
     const trips = ref([])
     const isLoading = ref(true)
+    const showDeleteModal = ref(false)
+    const tripToDelete = ref(null)
+    const isDeleting = ref(false)
 
     // 显示Toast通知
     const showToast = (message, type = 'success') => {
@@ -209,6 +244,39 @@ export default {
       }
     }
 
+    // 显示删除确认弹窗
+    const showDeleteConfirmation = (trip) => {
+      tripToDelete.value = trip
+      showDeleteModal.value = true
+    }
+
+    // 确认删除行程
+    const confirmDelete = async () => {
+      if (!tripToDelete.value) return
+
+      try {
+        isDeleting.value = true
+        const response = await apiClient.delete(`/trips/${tripToDelete.value.id}`)
+        
+        console.log('删除行程响应:', response)
+
+        if (response.success) {
+          // 从列表中移除该行程
+          trips.value = trips.value.filter(trip => trip.id !== tripToDelete.value.id)
+          showToast('行程删除成功', 'success')
+          showDeleteModal.value = false
+          tripToDelete.value = null
+        } else {
+          showToast(response.message || '删除失败', 'error')
+        }
+      } catch (error) {
+        console.error('删除行程失败:', error)
+        showToast(error.response?.data?.message || '删除失败，请稍后重试', 'error')
+      } finally {
+        isDeleting.value = false
+      }
+    }
+
     onMounted(() => {
       fetchTrips()
     })
@@ -217,12 +285,17 @@ export default {
       trips,
       isLoading,
       toastRef,
+      showDeleteModal,
+      tripToDelete,
+      isDeleting,
       goBack,
       goToCreateTrip,
       goToTripDetail,
       formatDate,
       formatDateTime,
-      calculateDays
+      calculateDays,
+      showDeleteConfirmation,
+      confirmDelete
     }
   }
 }
@@ -466,6 +539,36 @@ export default {
   color: #999;
 }
 
+.footer-actions {
+  display: flex;
+  align-items: center;
+  gap: 1vw;
+}
+
+.delete-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.2vw;
+  height: 2.2vw;
+  padding: 0;
+  background: rgba(231, 76, 60, 0.1);
+  border: 0.1vw solid rgba(231, 76, 60, 0.3);
+  border-radius: 0.5vw;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.delete-btn:hover {
+  background: rgba(231, 76, 60, 0.2);
+  border-color: rgba(231, 76, 60, 0.5);
+  transform: scale(1.1);
+}
+
+.delete-icon {
+  font-size: 1.1vw;
+}
+
 .view-arrow {
   font-size: 1.5vw;
   color: #667eea;
@@ -616,6 +719,198 @@ export default {
 
 .button-icon {
   font-size: 1.5vw;
+}
+
+/* 删除确认弹窗 */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  backdrop-filter: blur(5px);
+}
+
+.modal-container {
+  background: white;
+  border-radius: 1.5vw;
+  width: 35vw;
+  max-width: 90vw;
+  box-shadow: 0 1.5vw 4vw rgba(0, 0, 0, 0.3);
+  overflow: hidden;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5vw 2vw;
+  background: linear-gradient(135deg, rgba(231, 76, 60, 0.1) 0%, rgba(192, 57, 43, 0.1) 100%);
+  border-bottom: 0.15vw solid rgba(231, 76, 60, 0.2);
+}
+
+.modal-header h2 {
+  margin: 0;
+  font-size: 1.5vw;
+  color: #e74c3c;
+  font-weight: 700;
+}
+
+.modal-close {
+  width: 2vw;
+  height: 2vw;
+  border: none;
+  background: rgba(231, 76, 60, 0.1);
+  color: #e74c3c;
+  font-size: 1.2vw;
+  cursor: pointer;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+}
+
+.modal-close:hover {
+  background: rgba(231, 76, 60, 0.2);
+  transform: rotate(90deg);
+}
+
+.modal-body {
+  padding: 2vw;
+  text-align: center;
+}
+
+.modal-warning {
+  font-size: 1.2vw;
+  color: #333;
+  margin: 0 0 1vw 0;
+  font-weight: 600;
+}
+
+.modal-trip-name {
+  font-size: 1.4vw;
+  color: #667eea;
+  margin: 0 0 1.5vw 0;
+  font-weight: 700;
+  padding: 1vw;
+  background: rgba(102, 126, 234, 0.1);
+  border-radius: 0.8vw;
+}
+
+.modal-hint {
+  font-size: 0.9vw;
+  color: #999;
+  margin: 0;
+  line-height: 1.6;
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1vw;
+  padding: 1.5vw 2vw;
+  background: #f8f8f8;
+  border-top: 0.1vw solid #e0e0e0;
+}
+
+.modal-button {
+  padding: 0.8vw 2vw;
+  border: none;
+  border-radius: 0.8vw;
+  font-size: 1vw;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.modal-button.cancel {
+  background: white;
+  color: #666;
+  border: 0.1vw solid #ddd;
+}
+
+.modal-button.cancel:hover {
+  background: #f5f5f5;
+  border-color: #999;
+}
+
+.modal-button.delete {
+  background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+  color: white;
+}
+
+.modal-button.delete:hover {
+  background: linear-gradient(135deg, #c0392b 0%, #e74c3c 100%);
+  transform: translateY(-0.1vw);
+  box-shadow: 0 0.3vw 0.8vw rgba(231, 76, 60, 0.3);
+}
+
+.modal-button.delete:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* 弹窗动画 */
+.modal-fade-enter-active {
+  animation: modal-fade-in 0.3s ease;
+}
+
+.modal-fade-leave-active {
+  animation: modal-fade-out 0.3s ease;
+}
+
+@keyframes modal-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes modal-fade-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+.modal-fade-enter-active .modal-container {
+  animation: modal-slide-in 0.3s ease;
+}
+
+.modal-fade-leave-active .modal-container {
+  animation: modal-slide-out 0.3s ease;
+}
+
+@keyframes modal-slide-in {
+  from {
+    transform: translateY(-3vw);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes modal-slide-out {
+  from {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateY(-3vw);
+    opacity: 0;
+  }
 }
 
 /* 响应式调整 */
